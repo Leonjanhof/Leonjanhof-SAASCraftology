@@ -27,17 +27,18 @@ export default function ProtectedEndpointStoryboard() {
       const parsedBody = JSON.parse(requestBody);
 
       // Call the protected endpoint
-      const response = await fetch(
-        "https://gznlyltalcxjisnunzdm.functions.supabase.co/protected-endpoint",
+      const { data, error: functionError } = await supabase.functions.invoke(
+        "protected-endpoint",
         {
-          method: "POST",
+          body: parsedBody,
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(parsedBody),
         },
       );
+
+      if (functionError) throw functionError;
+      const response = { json: () => Promise.resolve(data) };
 
       const data = await response.json();
       setResult(data);

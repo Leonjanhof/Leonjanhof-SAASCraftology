@@ -22,21 +22,19 @@ export default function VerifyLicenseTestStoryboard() {
     setResult(null);
 
     try {
-      // Direct fetch to the Supabase Edge Function URL
-      const response = await fetch(
-        "https://gznlyltalcxjisnunzdm.functions.supabase.co/verify-license",
+      // Use the Supabase client to call the Edge Function
+      const { data, error: functionError } = await supabase.functions.invoke(
+        "verify-license",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
+          body: {
             license_key: licenseKey,
             hwid: hwid || null,
-          }),
+          },
         },
       );
+
+      if (functionError) throw functionError;
+      const response = { json: () => Promise.resolve(data) };
 
       const data = await response.json();
       setResult(data);

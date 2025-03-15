@@ -99,14 +99,14 @@ export default function TokenVerificationDocsStoryboard() {
                     First, verify a license to obtain a token:
                   </p>
                   <pre className="p-3 bg-gray-100 rounded text-sm overflow-auto mb-4">
-                    {`// POST to verify-license endpoint
+                    {`// Example using fetch API
 const response = await fetch(
-  "https://gznlyltalcxjisnunzdm.functions.supabase.co/verify-license",
+  \`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-license\`,
   {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": "Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}"
+      "Authorization": \`Bearer \${ANON_KEY}\`
     },
     body: JSON.stringify({
       license_key: "YOUR_LICENSE_KEY",
@@ -115,29 +115,26 @@ const response = await fetch(
   }
 );
 
-const data = await response.json();
-// If valid, data will contain a token
-const token = data.token; // Store this securely`}
+const result = await response.json();
+const token = result.token; // Store this token securely`}
                   </pre>
-                </div>
 
-                <div>
                   <h3 className="text-lg font-semibold mb-2">
-                    Step 2: Use the Token
+                    Step 2: Use the Token with Protected Endpoints
                   </h3>
                   <p className="text-gray-700 mb-2">
                     Include the token in the Authorization header for protected
-                    endpoints:
+                    requests:
                   </p>
                   <pre className="p-3 bg-gray-100 rounded text-sm overflow-auto mb-4">
-                    {`// Call a protected endpoint
-const protectedResponse = await fetch(
-  "https://gznlyltalcxjisnunzdm.functions.supabase.co/protected-endpoint",
+                    {`// Example using fetch API
+const response = await fetch(
+  \`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/protected-endpoint\`,
   {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": "Bearer " + token // Use the token from step 1
+      "Authorization": \`Bearer \${token}\` // Use the token from step 1
     },
     body: JSON.stringify({
       // Your request data here
@@ -145,24 +142,28 @@ const protectedResponse = await fetch(
   }
 );
 
-const protectedData = await protectedResponse.json();`}
+const result = await response.json();`}
                   </pre>
-                </div>
 
-                <div>
                   <h3 className="text-lg font-semibold mb-2">
                     Step 3: Handle Token Expiration
                   </h3>
                   <p className="text-gray-700 mb-2">
                     If a token expires (after 1 hour), you'll need to re-verify
-                    the license:
+                    the license to get a new token:
                   </p>
                   <pre className="p-3 bg-gray-100 rounded text-sm overflow-auto mb-4">
-                    {`// Check for token expiration in the response
-if (protectedData.success === false && 
-    protectedData.message.includes("expired")) {
-  // Re-verify the license to get a new token
-  // ... code from Step 1 ...
+                    {`// Example error handling
+try {
+  const response = await callProtectedEndpoint(token);
+  // Process successful response
+} catch (error) {
+  if (error.status === 401) {
+    // Token expired or invalid
+    const newToken = await reverifyLicense();
+    // Retry with new token
+    const retryResponse = await callProtectedEndpoint(newToken);
+  }
 }`}
                   </pre>
                 </div>
@@ -178,143 +179,147 @@ if (protectedData.success === false &&
               <CardContent className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
-                    Complete JavaScript Example
+                    Example: Complete License Verification Flow
                   </h3>
                   <pre className="p-3 bg-gray-100 rounded text-sm overflow-auto mb-4">
-                    {`// License verification and token usage example
-
-async function verifyLicense(licenseKey, hwid) {
+                    {`// Complete example with error handling
+async function verifyLicenseAndUseApi(licenseKey, hwid) {
   try {
-    const response = await fetch(
-      "https://gznlyltalcxjisnunzdm.functions.supabase.co/verify-license",
+    // Step 1: Verify license and get token
+    const verifyResponse = await fetch(
+      \`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-license\`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}"
+          "Authorization": \`Bearer \${ANON_KEY}\`
         },
-        body: JSON.stringify({
-          license_key: licenseKey,
-          hwid: hwid
-        })
+        body: JSON.stringify({ license_key: licenseKey, hwid })
       }
     );
     
-    const data = await response.json();
-    
-    if (data.valid) {
-      // Store the token securely
-      sessionStorage.setItem("licenseToken", data.token);
-      return {
-        success: true,
-        token: data.token,
-        expiresAt: data.expires_at
-      };
-    } else {
-      return {
-        success: false,
-        message: data.message || "License verification failed"
-      };
-    }
-  } catch (error) {
-    return {
-      success: false,
-      message: error.message || "An error occurred during verification"
-    };
-  }
-}
-
-async function callProtectedEndpoint(requestData) {
-  try {
-    // Get the token from storage
-    const token = sessionStorage.getItem("licenseToken");
-    
-    if (!token) {
-      return {
-        success: false,
-        message: "No valid license token found. Please verify your license."
-      };
+    if (!verifyResponse.ok) {
+      const errorData = await verifyResponse.json();
+      throw new Error(errorData.message || "License verification failed");
     }
     
-    const response = await fetch(
-      "https://gznlyltalcxjisnunzdm.functions.supabase.co/protected-endpoint",
+    const verifyResult = await verifyResponse.json();
+    const token = verifyResult.token;
+    
+    // Step 2: Use the token with a protected endpoint
+    const apiResponse = await fetch(
+      \`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/protected-endpoint\`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer " + token
+          "Authorization": \`Bearer \${token}\`
         },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify({ /* your data */ })
       }
     );
     
-    const data = await response.json();
-    
-    if (!data.success && data.message.includes("expired")) {
-      // Token has expired, clear it
-      sessionStorage.removeItem("licenseToken");
-      
-      return {
-        success: false,
-        message: "Your session has expired. Please verify your license again."
-      };
+    if (!apiResponse.ok) {
+      const errorData = await apiResponse.json();
+      throw new Error(errorData.message || "API request failed");
     }
     
-    return data;
+    return await apiResponse.json();
   } catch (error) {
-    return {
-      success: false,
-      message: error.message || "An error occurred"
-    };
-  }
-}
-
-// Usage example
-async function example() {
-  // Step 1: Verify license
-  const verifyResult = await verifyLicense("YOUR-LICENSE-KEY", "YOUR-HWID");
-  
-  if (!verifyResult.success) {
-    console.error("License verification failed:", verifyResult.message);
-    return;
-  }
-  
-  console.log("License verified successfully!");
-  
-  // Step 2: Call protected endpoint
-  const protectedResult = await callProtectedEndpoint({
-    action: "getData",
-    parameters: {
-      // Your parameters here
-    }
-  });
-  
-  if (protectedResult.success) {
-    console.log("Protected endpoint response:", protectedResult.data);
-  } else {
-    console.error("Protected endpoint error:", protectedResult.message);
+    console.error("Error:", error);
+    throw error;
   }
 }`}
                   </pre>
-                </div>
 
-                <div className="p-4 bg-amber-50 text-amber-800 rounded-md">
-                  <h3 className="font-semibold mb-2">Important Notes</h3>
-                  <ul className="list-disc pl-5 space-y-1 text-sm">
-                    <li>Always use HTTPS for all API requests</li>
-                    <li>
-                      In production applications, consider more secure token
-                      storage methods
-                    </li>
-                    <li>
-                      Implement proper error handling for network issues and
-                      token expiration
-                    </li>
-                    <li>
-                      The token is tied to the specific license and product - it
-                      cannot be used for other products
-                    </li>
-                  </ul>
+                  <h3 className="text-lg font-semibold mb-2">
+                    Example: Using with React
+                  </h3>
+                  <pre className="p-3 bg-gray-100 rounded text-sm overflow-auto mb-4">
+                    {`// React component example
+import { useState, useEffect } from 'react';
+
+function LicensedFeature({ licenseKey }) {
+  const [token, setToken] = useState(null);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  
+  // Verify license on component mount
+  useEffect(() => {
+    async function verifyLicense() {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          \`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-license\`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": \`Bearer \${ANON_KEY}\`
+            },
+            body: JSON.stringify({ license_key: licenseKey })
+          }
+        );
+        
+        const result = await response.json();
+        if (result.valid) {
+          setToken(result.token);
+        } else {
+          setError(result.message);
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    if (licenseKey) {
+      verifyLicense();
+    }
+  }, [licenseKey]);
+  
+  // Use the protected API with the token
+  async function fetchProtectedData() {
+    if (!token) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(
+        \`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/protected-endpoint\`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": \`Bearer \${token}\`
+          },
+          body: JSON.stringify({})
+        }
+      );
+      
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!token) return <div>Please enter a valid license key</div>;
+  
+  return (
+    <div>
+      <p>License verified successfully!</p>
+      <button onClick={fetchProtectedData}>Fetch Protected Data</button>
+      {data && <pre>{JSON.stringify(data, null, 2)}</pre>}
+    </div>
+  );
+}`}
+                  </pre>
                 </div>
               </CardContent>
             </Card>

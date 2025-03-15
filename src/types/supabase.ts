@@ -80,7 +80,7 @@ export type Database = {
           amount: number | null
           cancel_at_period_end: boolean | null
           canceled_at: number | null
-          created_at: string
+          created_at: string | null
           currency: string | null
           current_period_end: number | null
           current_period_start: number | null
@@ -89,7 +89,6 @@ export type Database = {
           customer_cancellation_reason: string | null
           customer_id: string | null
           ended_at: number | null
-          ends_at: number | null
           id: string
           interval: string | null
           metadata: Json | null
@@ -98,14 +97,14 @@ export type Database = {
           status: string | null
           stripe_id: string | null
           stripe_price_id: string | null
-          updated_at: string
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
           amount?: number | null
           cancel_at_period_end?: boolean | null
           canceled_at?: number | null
-          created_at?: string
+          created_at?: string | null
           currency?: string | null
           current_period_end?: number | null
           current_period_start?: number | null
@@ -114,7 +113,6 @@ export type Database = {
           customer_cancellation_reason?: string | null
           customer_id?: string | null
           ended_at?: number | null
-          ends_at?: number | null
           id?: string
           interval?: string | null
           metadata?: Json | null
@@ -123,14 +121,14 @@ export type Database = {
           status?: string | null
           stripe_id?: string | null
           stripe_price_id?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           amount?: number | null
           cancel_at_period_end?: boolean | null
           canceled_at?: number | null
-          created_at?: string
+          created_at?: string | null
           currency?: string | null
           current_period_end?: number | null
           current_period_start?: number | null
@@ -139,7 +137,6 @@ export type Database = {
           customer_cancellation_reason?: string | null
           customer_id?: string | null
           ended_at?: number | null
-          ends_at?: number | null
           id?: string
           interval?: string | null
           metadata?: Json | null
@@ -148,23 +145,15 @@ export type Database = {
           status?: string | null
           stripe_id?: string | null
           stripe_price_id?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "subscriptions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       users: {
         Row: {
           avatar_url: string | null
-          created_at: string
+          created_at: string | null
           credits: string | null
           email: string | null
           full_name: string | null
@@ -178,11 +167,11 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           credits?: string | null
           email?: string | null
           full_name?: string | null
-          id: string
+          id?: string
           image?: string | null
           name?: string | null
           subscription?: string | null
@@ -192,7 +181,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           credits?: string | null
           email?: string | null
           full_name?: string | null
@@ -208,29 +197,29 @@ export type Database = {
       }
       webhook_events: {
         Row: {
-          created_at: string
+          created_at: string | null
           data: Json | null
           event_type: string
           id: string
-          modified_at: string
+          modified_at: string | null
           stripe_event_id: string | null
           type: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           data?: Json | null
           event_type: string
           id?: string
-          modified_at?: string
+          modified_at?: string | null
           stripe_event_id?: string | null
           type: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           data?: Json | null
           event_type?: string
           id?: string
-          modified_at?: string
+          modified_at?: string | null
           stripe_event_id?: string | null
           type?: string
         }

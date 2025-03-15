@@ -118,7 +118,7 @@ export async function cancelSubscription(
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const { data, error } = await supabase.functions.invoke(
-      "supabase-functions-cancel-subscription",
+      "cancel-subscription",
       {
         body: { subscription_id: subscriptionId },
       },

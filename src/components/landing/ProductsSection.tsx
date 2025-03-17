@@ -33,7 +33,9 @@ const ProductsSection: React.FC = () => {
 
   const fetchPlans = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("get-plans");
+      const { data, error } = await supabase.functions.invoke(
+        "supabase-functions-get-plans",
+      );
 
       if (error) {
         throw error;
@@ -88,7 +90,7 @@ const ProductsSection: React.FC = () => {
       });
 
       const { data, error } = await supabase.functions.invoke(
-        "create-checkout",
+        "supabase-functions-create-checkout",
         {
           body: {
             price_id: priceId,
@@ -263,6 +265,7 @@ const ProductsSection: React.FC = () => {
                   "-card"
                 }
                 className="overflow-hidden rounded-lg"
+                style={{ perspective: "1000px" }}
               >
                 <ProductCard
                   title={product.title}

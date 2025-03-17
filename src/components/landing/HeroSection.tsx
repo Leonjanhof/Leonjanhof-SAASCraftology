@@ -40,11 +40,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               <TextAnimation
                 text="software"
                 type="letter"
-                animation="bounce"
                 isGreen
-                delay={0.5}
+                delay={0.3}
               />{" "}
-              <TextAnimation text="solutions" type="letter" delay={0.8} />
+              <TextAnimation text="solutions" type="letter" delay={0.6} />
             </h1>
             <p className="text-xl md:text-2xl mb-10 text-gray-300">
               <TextAnimation
@@ -85,7 +84,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-gray-900 to-transparent z-5" />
 
       {/* Custom style for diagonal clip path */}
-      <style jsx>{`
+      <style>{`
         .clip-path-diagonal {
           clip-path: polygon(0 20%, 100% 0, 100% 100%, 0% 100%);
         }

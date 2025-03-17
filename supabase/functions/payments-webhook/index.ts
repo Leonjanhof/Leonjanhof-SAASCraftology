@@ -40,6 +40,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
 // Utility functions
@@ -111,6 +112,23 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
     }
   }
 
+  // Try to get product name from the subscription items
+  let productName = "";
+  if (subscription.items?.data?.length > 0) {
+    const priceId = subscription.items.data[0].price.id;
+    console.log("Price ID from subscription:", priceId);
+
+    // Map price IDs to product names
+    const priceToProductMap: Record<string, string> = {
+      price_1R1A9uGLqZ8YjU1vEkXXC79n: "Autovoter",
+      price_1R1AE1GLqZ8YjU1vUrS3ZSXJ: "Factionsbot 1.18.2",
+      price_1R1AETGLqZ8YjU1vkuXGLxKY: "EMC captcha solver",
+    };
+
+    productName = priceToProductMap[priceId] || "";
+    console.log("Mapped product name:", productName);
+  }
+
   const subscriptionData: SubscriptionData = {
     stripe_id: subscription.id,
     user_id: userId,
@@ -125,7 +143,10 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
     amount: subscription.items.data[0]?.plan.amount ?? 0,
     started_at: subscription.start_date ?? Math.floor(Date.now() / 1000),
     customer_id: subscription.customer,
-    metadata: subscription.metadata || {},
+    metadata: {
+      ...(subscription.metadata || {}),
+      product_name: productName, // Add product name to metadata
+    },
     canceled_at: subscription.canceled_at,
     ended_at: subscription.ended_at,
   };
@@ -159,6 +180,19 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
+  }
+
+  // Verify the subscription was created/updated
+  const { data: verifySubscription, error: verifyError } = await supabaseClient
+    .from("subscriptions")
+    .select("id, stripe_id, status")
+    .eq("stripe_id", subscription.id)
+    .single();
+
+  if (verifyError) {
+    console.error("Error verifying subscription creation:", verifyError);
+  } else {
+    console.log("Subscription verified successfully:", verifySubscription.id);
   }
 
   return new Response(
@@ -303,12 +337,8 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
     );
 
     console.log(
-      "Attempting to update subscription in Supabase with stripe_id:",
+      "Checking if subscription exists in Supabase with stripe_id:",
       subscriptionId,
-    );
-    console.log(
-      "User ID being set:",
-      session.metadata?.userId || session.metadata?.user_id,
     );
 
     const userId = session.metadata?.userId || session.metadata?.user_id;
@@ -317,34 +347,88 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       throw new Error("No user ID found in session metadata");
     }
 
-    const supabaseUpdateResult = await supabaseClient
-      .from("subscriptions")
-      .update({
-        metadata: {
-          ...session.metadata,
-          checkoutSessionId: session.id,
-        },
-        user_id: userId,
-        status: stripeSubscription.status, // Update the status from Stripe
-        current_period_start: stripeSubscription.current_period_start,
-        current_period_end: stripeSubscription.current_period_end,
-        cancel_at_period_end: stripeSubscription.cancel_at_period_end,
-      })
-      .eq("stripe_id", subscriptionId);
+    // First, check if the subscription already exists in the database
+    const { data: existingSubscription, error: checkError } =
+      await supabaseClient
+        .from("subscriptions")
+        .select("id")
+        .eq("stripe_id", subscriptionId)
+        .maybeSingle();
 
     console.log(
-      "Supabase update result:",
-      JSON.stringify(supabaseUpdateResult, null, 2),
+      "Existing subscription check result:",
+      existingSubscription ? "Found" : "Not found",
     );
 
-    if (supabaseUpdateResult.error) {
+    if (checkError) {
+      console.error("Error checking for existing subscription:", checkError);
+    }
+
+    // Prepare subscription data
+    const subscriptionData: SubscriptionData = {
+      stripe_id: subscriptionId,
+      user_id: userId,
+      price_id: stripeSubscription.items.data[0]?.price.id,
+      stripe_price_id: stripeSubscription.items.data[0]?.price.id,
+      currency: stripeSubscription.currency,
+      interval: stripeSubscription.items.data[0]?.plan.interval,
+      status: stripeSubscription.status,
+      current_period_start: stripeSubscription.current_period_start,
+      current_period_end: stripeSubscription.current_period_end,
+      cancel_at_period_end: stripeSubscription.cancel_at_period_end,
+      amount: stripeSubscription.items.data[0]?.plan.amount ?? 0,
+      started_at:
+        stripeSubscription.start_date ?? Math.floor(Date.now() / 1000),
+      customer_id: stripeSubscription.customer,
+      metadata: {
+        ...session.metadata,
+        checkoutSessionId: session.id,
+      },
+    };
+
+    let supabaseResult;
+
+    // If subscription doesn't exist, create it; otherwise, update it
+    if (!existingSubscription) {
+      console.log("Creating new subscription in Supabase");
+      supabaseResult = await supabaseClient
+        .from("subscriptions")
+        .insert(subscriptionData);
+    } else {
+      console.log("Updating existing subscription in Supabase");
+      supabaseResult = await supabaseClient
+        .from("subscriptions")
+        .update(subscriptionData)
+        .eq("stripe_id", subscriptionId);
+    }
+
+    console.log(
+      "Supabase subscription operation result:",
+      JSON.stringify(supabaseResult, null, 2),
+    );
+
+    if (supabaseResult.error) {
       console.error(
-        "Error updating Supabase subscription:",
-        supabaseUpdateResult.error,
+        "Error with Supabase subscription operation:",
+        supabaseResult.error,
       );
       throw new Error(
-        `Supabase update failed: ${supabaseUpdateResult.error.message}`,
+        `Supabase subscription operation failed: ${supabaseResult.error.message}`,
       );
+    }
+
+    // Verify the subscription was created/updated
+    const { data: verifySubscription, error: verifySubError } =
+      await supabaseClient
+        .from("subscriptions")
+        .select("id, stripe_id, status")
+        .eq("stripe_id", subscriptionId)
+        .single();
+
+    if (verifySubError) {
+      console.error("Error verifying subscription:", verifySubError);
+    } else if (verifySubscription) {
+      console.log("Subscription verified successfully:", verifySubscription.id);
     }
 
     // Get the product name from the line items
@@ -356,7 +440,7 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       console.log("Price ID from subscription:", priceId);
 
       // Map price IDs to product names
-      const priceToProductMap = {
+      const priceToProductMap: Record<string, string> = {
         price_1R1A9uGLqZ8YjU1vEkXXC79n: "Autovoter",
         price_1R1AE1GLqZ8YjU1vUrS3ZSXJ: "Factionsbot 1.18.2",
         price_1R1AETGLqZ8YjU1vkuXGLxKY: "EMC captcha solver",
@@ -364,6 +448,23 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
 
       productName = priceToProductMap[priceId] || "";
       console.log("Mapped product name:", productName);
+
+      // Also update the subscription metadata with the product name for future reference
+      if (productName && verifySubscription) {
+        console.log(
+          "Updating subscription metadata with product name:",
+          productName,
+        );
+        await supabaseClient
+          .from("subscriptions")
+          .update({
+            metadata: {
+              ...subscriptionData.metadata,
+              product_name: productName,
+            },
+          })
+          .eq("id", verifySubscription.id);
+      }
     }
 
     if (!productName) {
@@ -381,7 +482,7 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
         if (lineItems.data.length > 0) {
           const item = lineItems.data[0];
           if (item.price && item.price.id) {
-            const priceToProductMap = {
+            const priceToProductMap: Record<string, string> = {
               price_1R1A9uGLqZ8YjU1vEkXXC79n: "Autovoter",
               price_1R1AE1GLqZ8YjU1vUrS3ZSXJ: "Factionsbot 1.18.2",
               price_1R1AETGLqZ8YjU1vkuXGLxKY: "EMC captcha solver",
@@ -389,6 +490,23 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
             productName =
               priceToProductMap[item.price.id] || item.description || "";
             console.log("Product name from line items:", productName);
+
+            // Update subscription metadata with product name if found
+            if (productName && verifySubscription) {
+              console.log(
+                "Updating subscription metadata with product name from line items:",
+                productName,
+              );
+              await supabaseClient
+                .from("subscriptions")
+                .update({
+                  metadata: {
+                    ...subscriptionData.metadata,
+                    product_name: productName,
+                  },
+                })
+                .eq("id", verifySubscription.id);
+            }
           }
         }
       } catch (lineItemError) {
@@ -508,6 +626,7 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
         subscriptionId,
         licenseKey,
         licenseVerified: !!verifyLicense,
+        subscriptionVerified: !!verifySubscription,
       }),
       {
         status: 200,

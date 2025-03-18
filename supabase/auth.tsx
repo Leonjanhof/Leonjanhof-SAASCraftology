@@ -1,58 +1,161 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { supabase, checkSupabaseConnection } from "./supabase";
+import { supabase } from "./supabase";
+
+type UserRole = "user" | "admin";
+
+type UserData = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+};
 
 type AuthContextType = {
   user: User | null;
+  userData: UserData | null;
   loading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  isAdmin: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Changed to default export for the component
+// Default export for the component
 export default function AuthProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Function to fetch user data from the database
+  const fetchUserData = async (userId: string, userData?: any) => {
+    // If userData is already provided, use it instead of making a database call
+    if (userData && userData.full_name) {
+      return {
+        id: userId,
+        email: userData.email || "",
+        full_name: userData.full_name || "",
+        role: userData.role || "user",
+      } as UserData;
+    }
+
+    try {
+      // Use the admin client to bypass RLS policies
+      const adminClient = supabase.auth.admin;
+
+      // First try to get user metadata from auth.users
+      const { data: authUser } = await supabase.auth.getUser();
+      const userMetadata = authUser?.user?.user_metadata;
+
+      if (userMetadata && userMetadata.full_name) {
+        return {
+          id: userId,
+          email: authUser?.user?.email || "",
+          full_name: userMetadata.full_name || "",
+          role: userMetadata.role || "user",
+        } as UserData;
+      }
+
+      // If that fails, try the database query with a timeout
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(() => reject(new Error("Database query timeout")), 3000);
+      });
+
+      const queryPromise = supabase
+        .from("users")
+        .select("id, email, full_name, role")
+        .eq("id", userId)
+        .single();
+
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise])
+        .then(
+          (result) =>
+            result as typeof queryPromise extends Promise<infer T> ? T : never,
+        )
+        .catch((err) => {
+          console.error("Timeout or error fetching user data:", err);
+          return { data: null, error: err };
+        });
+
+      if (error) {
+        console.error("Error fetching user data:", error);
+        // Return a default user object to prevent blocking the auth flow
+        return {
+          id: userId,
+          email: authUser?.user?.email || "",
+          full_name: userMetadata?.full_name || "User",
+          role: "user",
+        } as UserData;
+      }
+
+      return data as UserData;
+    } catch (error) {
+      console.error("Exception fetching user data:", error);
+      // Return a default user object to prevent blocking the auth flow
+      return {
+        id: userId,
+        email: "",
+        full_name: "User",
+        role: "user",
+      } as UserData;
+    }
+  };
 
   useEffect(() => {
     async function initAuth() {
       try {
-        // Check Supabase connection first
-        const isConnected = await checkSupabaseConnection();
-        if (!isConnected) {
-          console.warn("Unable to connect to Supabase database");
-          if (import.meta.env.DEV) {
-            setError(
-              "Unable to connect to the database. Please try again later.",
-            );
-          }
-          setLoading(false);
-          return;
-        }
+        setLoading(true);
 
         // Check active sessions
         const {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
+
         if (sessionError) throw sessionError;
 
-        setUser(session?.user ?? null);
+        if (session?.user) {
+          setUser(session.user);
+
+          // Use user metadata first if available
+          const userMetadata = session.user.user_metadata;
+
+          // Fetch additional user data from the database
+          const data = await fetchUserData(session.user.id, userMetadata);
+          if (data) {
+            setUserData(data);
+            setIsAdmin(data.role === "admin");
+          } else if (userMetadata) {
+            // Fallback to metadata only
+            const basicUserData = {
+              id: session.user.id,
+              email: session.user.email || "",
+              full_name: userMetadata.full_name || "User",
+              role: userMetadata.role || "user",
+            };
+            setUserData(basicUserData as UserData);
+            setIsAdmin(basicUserData.role === "admin");
+          }
+        } else {
+          setUser(null);
+          setUserData(null);
+          setIsAdmin(false);
+        }
+
         setError(null);
       } catch (e) {
         console.error("Auth initialization error:", e);
-        if (import.meta.env.DEV) {
-          setError("Authentication service is currently unavailable.");
-        }
+        // Don't set error to prevent blocking the UI
+        // setError("Authentication service is currently unavailable.");
       } finally {
         setLoading(false);
       }
@@ -63,7 +166,33 @@ export default function AuthProvider({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
+      if (session?.user) {
+        setUser(session.user);
+
+        // Use user metadata first if available
+        const userMetadata = session.user.user_metadata;
+
+        // Fetch additional user data from the database
+        const data = await fetchUserData(session.user.id, userMetadata);
+        if (data) {
+          setUserData(data);
+          setIsAdmin(data.role === "admin");
+        } else if (userMetadata) {
+          // Fallback to metadata only
+          const basicUserData = {
+            id: session.user.id,
+            email: session.user.email || "",
+            full_name: userMetadata.full_name || "User",
+            role: userMetadata.role || "user",
+          };
+          setUserData(basicUserData as UserData);
+          setIsAdmin(basicUserData.role === "admin");
+        }
+      } else {
+        setUser(null);
+        setUserData(null);
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -71,50 +200,57 @@ export default function AuthProvider({
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
+      setLoading(true);
+      // Sign up the user with Supabase Auth
       const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
+            role: "user", // Store role in user metadata too
           },
         },
       });
+
       if (error) throw error;
 
       // If signup was successful and we have a user, create an entry in the public.users table
       if (authData.user) {
         console.log("Creating user record for:", authData.user.id);
 
-        // First check if user already exists to avoid duplicate key errors
-        const { data: existingUser } = await supabase
-          .from("users")
-          .select("id")
-          .eq("id", authData.user.id)
-          .single();
-
-        if (existingUser) {
-          console.log("User already exists in database, skipping insert");
-        } else {
+        try {
           // Insert the new user with all required fields
           const { error: insertError } = await supabase.from("users").insert({
-            id: authData.user.id, // Use the same ID as the auth user
+            id: authData.user.id,
             email: email,
             full_name: fullName,
-            user_id: authData.user.id,
-            token_identifier: authData.user.id, // Using user ID as token identifier
+            role: "user", // Default role is 'user'
+            token_identifier: authData.user.id, // Use user ID as token identifier
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
 
           if (insertError) {
             console.error("Error creating user record:", insertError);
-            // Log more details about the error
-            console.error("Error details:", JSON.stringify(insertError));
-            // We don't throw here to avoid preventing login if DB insert fails
-          } else {
-            console.log("User record created successfully");
+            // Continue anyway - the auth record is created
+            console.log("Continuing with auth record only");
           }
+        } catch (insertErr) {
+          console.error("Exception creating user record:", insertErr);
+          // Continue anyway - the auth record is created
+          console.log("Continuing with auth record only");
+        }
+
+        // Set user data from the metadata to avoid database query
+        if (authData.user.user_metadata) {
+          const userData = {
+            id: authData.user.id,
+            email: email,
+            full_name: fullName,
+            role: "user",
+          };
+          setUserData(userData as UserData);
         }
       }
 
@@ -122,20 +258,49 @@ export default function AuthProvider({
     } catch (e: any) {
       console.error("Sign up error:", e);
       throw new Error(e.message || "Failed to sign up");
+    } finally {
+      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
       if (error) throw error;
+
+      if (data.user) {
+        // Use user metadata first if available
+        const userMetadata = data.user.user_metadata;
+
+        // Fetch additional user data from the database
+        const userData = await fetchUserData(data.user.id, userMetadata);
+        if (userData) {
+          setUserData(userData);
+          setIsAdmin(userData.role === "admin");
+        } else {
+          // Fallback to basic user data
+          const basicUserData = {
+            id: data.user.id,
+            email: data.user.email || email,
+            full_name: userMetadata?.full_name || "User",
+            role: userMetadata?.role || "user",
+          };
+          setUserData(basicUserData as UserData);
+          setIsAdmin(basicUserData.role === "admin");
+        }
+      }
+
       setError(null);
     } catch (e: any) {
       console.error("Sign in error:", e);
       throw new Error(e.message || "Failed to sign in");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -143,6 +308,9 @@ export default function AuthProvider({
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      setUser(null);
+      setUserData(null);
+      setIsAdmin(false);
       setError(null);
     } catch (e: any) {
       console.error("Sign out error:", e);
@@ -169,21 +337,25 @@ export default function AuthProvider({
     );
   }
 
-  // In production, don't show the error screen
-  if (error && !import.meta.env.DEV) {
-    console.warn("Auth connection error:", error);
-  }
-
   return (
     <AuthContext.Provider
-      value={{ user, loading, error, signIn, signUp, signOut }}
+      value={{
+        user,
+        userData,
+        loading,
+        error,
+        signIn,
+        signUp,
+        signOut,
+        isAdmin,
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
 
-// Separate named export for the hook
+// Hook for using auth context
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

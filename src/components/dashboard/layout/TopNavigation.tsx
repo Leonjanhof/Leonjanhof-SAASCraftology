@@ -1,5 +1,5 @@
 import React from "react";
-import { Bell, Home, Search, Settings, User } from "lucide-react";
+import { Bell, Home, Search, Settings, User, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "../../../../supabase/auth";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface TopNavigationProps {
   onSearch?: (query: string) => void;
@@ -32,9 +32,14 @@ const TopNavigation = ({
     { id: "2", title: "Meeting reminder" },
   ],
 }: TopNavigationProps) => {
-  const { user, signOut } = useAuth();
+  const { user, userData, signOut, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
+
+  const handleAdminPanel = () => {
+    navigate("/admin");
+  };
 
   return (
     <div className="w-full h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4 fixed top-0 z-50">
@@ -58,7 +63,11 @@ const TopNavigation = ({
             <TooltipTrigger asChild>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative text-gray-700">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative text-gray-700"
+                  >
                     <Bell className="h-5 w-5" />
                     {notifications.length > 0 && (
                       <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
@@ -108,7 +117,7 @@ const TopNavigation = ({
                 <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
               </Avatar>
               <span className="hidden md:inline-block text-sm">
-                {user.email}
+                {userData?.full_name || user.email}
               </span>
             </Button>
           </DropdownMenuTrigger>
@@ -123,6 +132,12 @@ const TopNavigation = ({
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
+            {isAdmin && (
+              <DropdownMenuItem onClick={handleAdminPanel} className="py-2">
+                <Shield className="mr-2 h-4 w-4" />
+                Admin Panel
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => signOut()} className="py-2">
               Log out

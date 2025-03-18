@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -144,6 +144,16 @@ const Navbar: React.FC = () => {
                       dashboard
                     </Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem className="hover:bg-green-400 hover:text-white focus:bg-green-400 focus:text-white">
+                      <Link
+                        to="/admin"
+                        className="w-full text-green-400 hover:text-white group-hover:text-white"
+                      >
+                        Admin Panel
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onSelect={() => signOut()}
                     className="text-green-400 hover:text-white hover:bg-green-400 focus:bg-green-400 focus:text-white"
@@ -255,6 +265,15 @@ const Navbar: React.FC = () => {
                   >
                     dashboard
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="block text-white hover:text-green-400 transition-colors py-2"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Admin Panel
+                    </Link>
+                  )}
                   <button
                     className="block text-white hover:text-green-400 transition-colors py-2"
                     onClick={() => {

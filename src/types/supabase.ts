@@ -239,6 +239,12 @@ export type Database = {
         }
         Returns: string
       }
+      set_user_as_admin: {
+        Args: {
+          user_email: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

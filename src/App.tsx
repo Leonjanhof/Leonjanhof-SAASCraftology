@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useRoutes } from "react-router-dom";
 import routes from "tempo-routes";
 import LoginForm from "./components/auth/LoginForm";
@@ -7,6 +7,11 @@ import Dashboard from "./components/pages/dashboard";
 import Success from "./components/pages/success";
 import Home from "./components/pages/home";
 import AuthProvider, { useAuth } from "../supabase/auth";
+
+// Lazy load the admin component
+const AdminDashboard = lazy(
+  () => import("./components/storyboards/AdminDashboardStoryboard"),
+);
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -70,7 +75,25 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/" />;
+    return <Navigate to="/login" />;
+  }
+
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, isAdmin } = useAuth();
+
+  if (loading) {
+    return <LoadingFallback />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" />;
   }
 
   return <>{children}</>;
@@ -93,6 +116,14 @@ function AppRoutes() {
             }
           />
           <Route path="/success" element={<Success />} />
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
           {/* Tempo routes */}
           {import.meta.env.VITE_TEMPO === "true" && (
             <Route path="/tempobook/*" element={null} />

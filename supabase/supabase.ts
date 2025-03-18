@@ -1,53 +1,106 @@
 import { createClient } from "@supabase/supabase-js";
 
+// Create a single instance of the Supabase client to avoid multiple GoTrueClient instances
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Log environment variables availability for debugging
+console.log("Supabase configuration:", {
+  url: supabaseUrl ? "✓" : "✗",
+  anonKey: supabaseAnonKey ? "✓" : "✗",
+});
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
+  console.error(
     "Supabase URL or Anon Key is missing. Please check your environment variables.",
-    {
-      url: supabaseUrl ? "✓" : "✗",
-      key: supabaseAnonKey ? "✓" : "✗",
-    },
   );
 }
 
+// Create a single instance with the appropriate auth settings and explicit headers
 export const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "", {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
+  global: {
+    headers: {
+      apikey: supabaseAnonKey || "",
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  },
 });
 
-// Add connection status check
-export async function checkSupabaseConnection() {
-  try {
-    // First try to check if we can access the database at all
-    const { data, error } = await supabase
-      .from("licenses")
-      .select("count")
-      .limit(1);
+// For admin operations that bypass RLS, use service role key if available
+const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_KEY;
+console.log("Service role key available:", !!serviceRoleKey);
 
-    if (error) {
-      console.error("Supabase licenses table check failed:", error);
-      // Try another table as a fallback
-      const { error: usersError } = await supabase
-        .from("users")
+// Export admin client getter function
+export function getAdminClient() {
+  if (!serviceRoleKey) {
+    console.warn("Service role key is not available, using anon key instead");
+    return supabase;
+  }
+
+  return createClient(supabaseUrl || "", serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    },
+  });
+}
+
+// Add connection status check with retry logic
+export async function checkSupabaseConnection(retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      // Try reviews table first as it has less restrictive policies
+      const { data, error } = await supabase
+        .from("reviews")
         .select("count")
         .limit(1);
 
-      if (usersError) {
-        console.error("Supabase users table check failed:", usersError);
-        throw usersError;
-      }
-    }
+      if (error) {
+        console.error(`Supabase connection attempt ${i + 1} failed:`, error);
+        // Try another table as a fallback
+        const { error: licensesError } = await supabase
+          .from("licenses")
+          .select("count")
+          .limit(1);
 
-    console.log("Supabase connection successful");
-    return true;
-  } catch (error) {
-    console.error("Supabase connection failed:", error);
-    return false;
+        if (licensesError) {
+          console.error(
+            `Licenses table check attempt ${i + 1} failed:`,
+            licensesError,
+          );
+          if (i < retries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+          return false;
+        }
+      }
+
+      console.log("Supabase connection successful");
+      return true;
+    } catch (error) {
+      console.error(`Supabase connection attempt ${i + 1} failed:`, error);
+      if (i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      return false;
+    }
   }
+
+  return false;
 }

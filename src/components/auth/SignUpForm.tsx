@@ -19,22 +19,24 @@ export default function SignUpForm() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(""); // Clear previous errors
+    setIsLoading(true);
 
     if (!email || !password || !fullName) {
       setError("All fields are required");
+      setIsLoading(false);
       return;
     }
 
     try {
       await signUp(email, password, fullName);
       // Show success message before redirecting
-      setError("");
       alert(
         "Account created successfully! Please check your email to verify your account.",
       );
@@ -42,6 +44,8 @@ export default function SignUpForm() {
     } catch (error: any) {
       console.error("Signup error:", error);
       setError(error.message || "Error creating account. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -50,23 +54,24 @@ export default function SignUpForm() {
       <Card className="w-full">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
-            <UserPlus className="h-5 w-5" /> create your account
+            <UserPlus className="h-5 w-5" /> Create your account
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">full name</Label>
+              <Label htmlFor="fullName">Name</Label>
               <Input
                 id="fullName"
-                placeholder="John Doe"
+                placeholder="Your name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -74,10 +79,11 @@ export default function SignUpForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">password</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -85,22 +91,24 @@ export default function SignUpForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button
               type="submit"
               className="w-full bg-green-400 hover:bg-green-500 text-white"
+              disabled={isLoading}
             >
-              create account
+              {isLoading ? "Creating account..." : "Create account"}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-center text-slate-600">
-            already have an account?{" "}
+            Already have an account?{" "}
             <Link to="/login" className="text-primary hover:underline">
-              sign in
+              Sign in
             </Link>
           </div>
         </CardFooter>

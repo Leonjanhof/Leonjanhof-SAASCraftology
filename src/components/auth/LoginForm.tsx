@@ -18,16 +18,23 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
     try {
       await signIn(email, password);
       navigate("/");
-    } catch (error) {
-      setError("Invalid email or password");
+    } catch (error: any) {
+      console.error("Login error:", error);
+      setError(error.message || "Invalid email or password");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -50,6 +57,7 @@ export default function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -61,14 +69,16 @@ export default function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button
               type="submit"
               className="w-full bg-green-400 hover:bg-green-500 text-white"
+              disabled={isLoading}
             >
-              sign in
+              {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
         </CardContent>

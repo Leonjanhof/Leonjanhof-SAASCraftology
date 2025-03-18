@@ -265,7 +265,6 @@ const ProductsSection: React.FC = () => {
                   "-card"
                 }
                 className="overflow-hidden rounded-lg"
-                style={{ perspective: "1000px" }}
               >
                 <ProductCard
                   title={product.title}

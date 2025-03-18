@@ -21,7 +21,7 @@ const CircleAnimation: React.FC<CircleAnimationProps> = ({
 }) => {
   return (
     <motion.div
-      className="absolute rounded-full bg-gray-400/10"
+      className={`absolute w-${size} h-${size} rounded-full bg-gray-400/10`}
       animate={animate}
       transition={{
         duration,
@@ -31,8 +31,6 @@ const CircleAnimation: React.FC<CircleAnimationProps> = ({
       style={{
         bottom,
         left,
-        width: `${size}px`,
-        height: `${size}px`,
       }}
     />
   );

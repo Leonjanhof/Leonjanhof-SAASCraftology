@@ -3,11 +3,10 @@ import { Navigate, Route, Routes, useRoutes } from "react-router-dom";
 import routes from "tempo-routes";
 import LoginForm from "./components/auth/LoginForm";
 import SignUpForm from "./components/auth/SignUpForm";
-import AuthCallback from "./components/auth/AuthCallback";
 import Dashboard from "./components/pages/dashboard";
 import Success from "./components/pages/success";
 import Home from "./components/pages/home";
-import { AuthProvider, useAuth } from "../supabase/auth";
+import AuthProvider, { useAuth } from "../supabase/auth";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -63,58 +62,49 @@ function LoadingFallback() {
   );
 }
 
-// Move PrivateRoute inside AppRoutes so it has access to AuthContext
-function AppRoutes() {
-  // Define PrivateRoute inside AppRoutes to ensure it has access to AuthContext
-  function PrivateRoute({ children }: { children: React.ReactNode }) {
-    const { user, loading } = useAuth();
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
 
-    if (loading) {
-      return <LoadingFallback />;
-    }
-
-    if (!user) {
-      return <Navigate to="/" />;
-    }
-
-    return <>{children}</>;
+  if (loading) {
+    return <LoadingFallback />;
   }
 
+  if (!user) {
+    return <Navigate to="/" />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppRoutes() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<LoginForm />} />
-        <Route path="/signup" element={<SignUpForm />} />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
-        />
-        <Route path="/success" element={<Success />} />
-        <Route
-          path="/auth/callback"
-          element={
-            <Suspense fallback={<LoadingFallback />}>
-              <AuthCallback />
-            </Suspense>
-          }
-        />
-        {/* Tempo routes */}
-        {import.meta.env.VITE_TEMPO === "true" && (
-          <Route path="/tempobook/*" element={null} />
-        )}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<LoginForm />} />
+          <Route path="/signup" element={<SignUpForm />} />
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route path="/success" element={<Success />} />
+          {/* Tempo routes */}
+          {import.meta.env.VITE_TEMPO === "true" && (
+            <Route path="/tempobook/*" element={null} />
+          )}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
 function App() {
-  // Ensure AuthProvider is the outermost wrapper
   return (
     <ErrorBoundary>
       <AuthProvider>

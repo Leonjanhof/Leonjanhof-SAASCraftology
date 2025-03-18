@@ -49,20 +49,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <motion.div
-      initial={{ rotateX: 180 }}
-      whileInView={{ rotateX: 0 }}
-      viewport={{ once: true, margin: "-100px" }}
-      transition={{ duration: 0.8, ease: "easeOut" }}
       whileHover={{ y: -5, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)" }}
-      className="h-full overflow-hidden perspective-1000"
-      style={{
-        transformStyle: "preserve-3d",
-        transformOrigin: "center center",
-      }}
+      transition={{ duration: 0.3 }}
+      className="h-full overflow-hidden"
     >
-      <Card
-        className={`h-full border-2 ${getBorderClass} bg-gray-900 backface-hidden`}
-      >
+      <Card className={`h-full border-2 ${getBorderClass} bg-gray-900`}>
         <div className={`h-2 w-full ${getBgClass} -mt-0.5`} />
         <CardHeader>
           <div className="flex justify-between items-start">

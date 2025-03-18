@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Bell, Home, Search, Settings, User, ShieldAlert } from "lucide-react";
+import React from "react";
+import { Bell, Home, Search, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,7 +19,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "../../../../supabase/auth";
 import { Link } from "react-router-dom";
-import { supabase } from "../../../../supabase/supabase";
 
 interface TopNavigationProps {
   onSearch?: (query: string) => void;
@@ -34,34 +33,6 @@ const TopNavigation = ({
   ],
 }: TopNavigationProps) => {
   const { user, signOut } = useAuth();
-  const [userRole, setUserRole] = useState<string>("customer");
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user) {
-        try {
-          const { data, error } = await supabase
-            .from("users")
-            .select("role")
-            .eq("id", user.id)
-            .single();
-
-          if (error) {
-            console.error("Error fetching user role:", error);
-            return;
-          }
-
-          if (data) {
-            setUserRole(data.role);
-          }
-        } catch (error) {
-          console.error("Error fetching user role:", error);
-        }
-      }
-    };
-
-    fetchUserRole();
-  }, [user]);
 
   if (!user) return null;
 
@@ -87,11 +58,7 @@ const TopNavigation = ({
             <TooltipTrigger asChild>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative text-gray-700"
-                  >
+                  <Button variant="ghost" size="icon" className="relative text-gray-700">
                     <Bell className="h-5 w-5" />
                     {notifications.length > 0 && (
                       <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
@@ -156,12 +123,6 @@ const TopNavigation = ({
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
-            {userRole === "admin" && (
-              <DropdownMenuItem className="py-2">
-                <ShieldAlert className="mr-2 h-4 w-4" />
-                Admin Dashboard
-              </DropdownMenuItem>
-            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => signOut()} className="py-2">
               Log out

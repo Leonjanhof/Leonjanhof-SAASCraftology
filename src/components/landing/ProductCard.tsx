@@ -53,7 +53,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
       transition={{ duration: 0.3 }}
       className="h-full overflow-hidden"
     >
-      <Card className={`h-full border-2 ${getBorderClass} bg-gray-900`}>
+      <Card
+        className={`h-full border-2 ${getBorderClass} bg-gray-900 flex flex-col`}
+      >
         <div className={`h-2 w-full ${getBgClass} -mt-0.5`} />
         <CardHeader>
           <div className="flex justify-between items-start">
@@ -83,7 +85,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             {description}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-grow">
           <div className="mb-4">
             <span className="text-3xl font-bold text-white">{price}</span>
             <span className="text-gray-400 ml-1">/month</span>
@@ -109,7 +111,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             ))}
           </ul>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="mt-auto">
           <Button
             onClick={onClick}
             disabled={isLoading}

@@ -2,7 +2,8 @@ import React from "react";
 import CircleAnimation from "./CircleAnimation";
 
 const BackgroundAnimation: React.FC = () => {
-  const circles = [
+  // Static circles that move around
+  const staticCircles = [
     {
       size: 20,
       duration: 15,
@@ -65,10 +66,37 @@ const BackgroundAnimation: React.FC = () => {
     },
   ];
 
+  // Falling circles that move downward
+  const fallingCircles = Array.from({ length: 8 }, (_, index) => ({
+    size: Math.random() * 18 + 10, // Random size between 10 and 28
+    duration: Math.random() * 8 + 12, // Random duration between 12 and 20 seconds
+    bottom: `${80 + Math.random() * 20}%`, // Start near the bottom
+    left: `${Math.random() * 100}%`, // Random horizontal position
+    animate: {
+      y: [-30, 300], // Move downward
+      opacity: [1, 0], // Fade out as it falls
+    },
+    transition: {
+      repeat: Infinity,
+      repeatDelay: Math.random() * 4,
+      duration: Math.random() * 5 + 5,
+    },
+  }));
+
   return (
-    <div className="absolute bottom-0 left-0 w-full h-[60%] overflow-hidden">
-      {circles.map((circle, index) => (
-        <CircleAnimation key={index} {...circle} />
+    <div className="absolute bottom-0 left-0 w-full h-[60%] overflow-visible">
+      {/* Static circles */}
+      {staticCircles.map((circle, index) => (
+        <CircleAnimation key={`static-${index}`} {...circle} />
+      ))}
+
+      {/* Falling circles */}
+      {fallingCircles.map((circle, index) => (
+        <CircleAnimation
+          key={`falling-${index}`}
+          {...circle}
+          isFalling={true}
+        />
       ))}
     </div>
   );

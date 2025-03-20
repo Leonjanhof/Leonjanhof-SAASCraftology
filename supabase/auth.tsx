@@ -9,6 +9,7 @@ type UserData = {
   email: string;
   full_name: string;
   role: UserRole;
+  permissions?: string[];
 };
 
 type AuthContextType = {
@@ -49,19 +50,36 @@ export default function AuthProvider({
     }
 
     try {
-      // Use the admin client to bypass RLS policies
-      const adminClient = supabase.auth.admin;
-
       // First try to get user metadata from auth.users
       const { data: authUser } = await supabase.auth.getUser();
       const userMetadata = authUser?.user?.user_metadata;
 
+      // Get user role from the user_roles table
+      const { data: userRole, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role_name")
+        .eq("user_id", userId)
+        .single();
+
+      // Get user permissions based on their role
+      let permissions: string[] = [];
+      if (userRole?.role_name) {
+        const { data: permissionsData } = await supabase
+          .from("role_permissions")
+          .select("permission")
+          .eq("role_name", userRole.role_name);
+
+        permissions = permissionsData?.map((p) => p.permission) || [];
+      }
+
+      // If we have user metadata, use it for basic info
       if (userMetadata && userMetadata.full_name) {
         return {
           id: userId,
           email: authUser?.user?.email || "",
           full_name: userMetadata.full_name || "",
-          role: userMetadata.role || "user",
+          role: userRole?.role_name || "user",
+          permissions,
         } as UserData;
       }
 
@@ -72,7 +90,7 @@ export default function AuthProvider({
 
       const queryPromise = supabase
         .from("users")
-        .select("id, email, full_name, role")
+        .select("id, email, full_name")
         .eq("id", userId)
         .single();
 
@@ -93,11 +111,16 @@ export default function AuthProvider({
           id: userId,
           email: authUser?.user?.email || "",
           full_name: userMetadata?.full_name || "User",
-          role: "user",
+          role: userRole?.role_name || "user",
+          permissions,
         } as UserData;
       }
 
-      return data as UserData;
+      return {
+        ...data,
+        role: userRole?.role_name || "user",
+        permissions,
+      } as UserData;
     } catch (error) {
       console.error("Exception fetching user data:", error);
       // Return a default user object to prevent blocking the auth flow
@@ -106,6 +129,7 @@ export default function AuthProvider({
         email: "",
         full_name: "User",
         role: "user",
+        permissions: [],
       } as UserData;
     }
   };
@@ -208,8 +232,9 @@ export default function AuthProvider({
         options: {
           data: {
             full_name: fullName,
-            role: "user", // Store role in user metadata too
           },
+          emailRedirectTo: `${window.location.origin}/login?confirmed=true`,
+          shouldCreateUser: true,
         },
       });
 
@@ -225,7 +250,6 @@ export default function AuthProvider({
             id: authData.user.id,
             email: email,
             full_name: fullName,
-            role: "user", // Default role is 'user'
             token_identifier: authData.user.id, // Use user ID as token identifier
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -235,6 +259,24 @@ export default function AuthProvider({
             console.error("Error creating user record:", insertError);
             // Continue anyway - the auth record is created
             console.log("Continuing with auth record only");
+          }
+
+          // The trigger function will automatically add the user role
+          // but we'll also try to add it explicitly as a fallback
+          const { error: roleError } = await supabase.from("user_roles").upsert(
+            {
+              user_id: authData.user.id,
+              role_name: "user",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: "user_id",
+            },
+          );
+
+          if (roleError) {
+            console.error("Error creating user role:", roleError);
           }
         } catch (insertErr) {
           console.error("Exception creating user record:", insertErr);
@@ -249,6 +291,11 @@ export default function AuthProvider({
             email: email,
             full_name: fullName,
             role: "user",
+            permissions: [
+              "access_dashboard",
+              "manage_own_licenses",
+              "update_profile",
+            ],
           };
           setUserData(userData as UserData);
         }
@@ -271,7 +318,34 @@ export default function AuthProvider({
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error cases
+        if (error.status === 400) {
+          if (error.message.includes("Invalid login credentials")) {
+            throw new Error("Invalid email or password");
+          } else if (error.message.includes("Email not confirmed")) {
+            throw new Error("Email not confirmed");
+          }
+        }
+        throw error;
+      }
+
+      // Check if the user's email is verified
+      if (data.user && !data.user.email_confirmed_at) {
+        console.warn("User email not verified:", data.user.email);
+        // Check if the user exists in the database despite not being verified
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", data.user.id)
+          .single();
+
+        if (userError || !userData) {
+          throw new Error("Email not confirmed");
+        } else {
+          console.log("User exists in database despite unverified email");
+        }
+      }
 
       if (data.user) {
         // Use user metadata first if available
@@ -298,7 +372,12 @@ export default function AuthProvider({
       setError(null);
     } catch (e: any) {
       console.error("Sign in error:", e);
-      throw new Error(e.message || "Failed to sign in");
+      // Don't wrap the error in another Error object if it's already formatted
+      if (e instanceof Error) {
+        throw e;
+      } else {
+        throw new Error(e.message || "Failed to sign in");
+      }
     } finally {
       setLoading(false);
     }

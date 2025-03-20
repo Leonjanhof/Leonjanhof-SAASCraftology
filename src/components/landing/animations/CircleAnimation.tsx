@@ -7,8 +7,16 @@ interface CircleAnimationProps {
   bottom: string;
   left: string;
   animate: {
-    x: number[];
-    y: number[];
+    x?: number[];
+    y?: number[];
+    opacity?: number[];
+  };
+  isFalling?: boolean;
+  transition?: {
+    repeat?: number | "Infinity";
+    repeatDelay?: number;
+    duration?: number;
+    ease?: string;
   };
 }
 
@@ -18,19 +26,27 @@ const CircleAnimation: React.FC<CircleAnimationProps> = ({
   bottom,
   left,
   animate,
+  isFalling = false,
+  transition,
 }) => {
+  const defaultTransition = {
+    duration,
+    repeat: Infinity,
+    ease: isFalling ? "easeIn" : "linear",
+    ...transition,
+  };
+
   return (
     <motion.div
-      className={`absolute w-${size} h-${size} rounded-full bg-gray-400/10`}
+      className="absolute rounded-full bg-gray-400/10"
       animate={animate}
-      transition={{
-        duration,
-        repeat: Infinity,
-        ease: "linear",
-      }}
+      transition={defaultTransition}
       style={{
         bottom,
         left,
+        width: `${size}px`,
+        height: `${size}px`,
+        zIndex: isFalling ? 20 : 10,
       }}
     />
   );

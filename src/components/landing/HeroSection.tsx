@@ -20,7 +20,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       <ParticleBackground />
 
       {/* Diagonal split background - positioned below content */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 z-0">
         <div className="absolute bottom-0 left-0 w-full h-[40%] bg-gradient-to-tr from-green-900 to-gray-800 clip-path-diagonal" />
 
         {/* Subtle grey circles animation for the bottom background */}
@@ -35,15 +35,21 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white">
-              <TextAnimation text="Minecraft" type="letter" />{" "}
-              <TextAnimation
-                text="software"
-                type="letter"
-                isGreen
-                delay={0.3}
-              />{" "}
-              <TextAnimation text="solutions" type="letter" delay={0.6} />
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white flex flex-wrap justify-center">
+              <span className="inline-block mr-2">
+                <TextAnimation text="Minecraft" type="letter" />
+              </span>{" "}
+              <span className="inline-block mr-2">
+                <TextAnimation
+                  text="software"
+                  type="letter"
+                  isGreen
+                  delay={0.3}
+                />
+              </span>{" "}
+              <span className="inline-block w-full sm:w-auto text-center sm:text-left">
+                <TextAnimation text="solutions" type="letter" delay={0.6} />
+              </span>
             </h1>
             <p className="text-xl md:text-2xl mb-10 text-gray-300">
               <TextAnimation

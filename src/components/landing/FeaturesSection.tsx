@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Clock, Zap, Shield, BarChart, Workflow, Code } from "lucide-react";
 import FeaturesBackground from "./animations/FeaturesBackground";
+import TextAnimation from "./animations/TextAnimation";
 
 interface FeatureProps {
   icon: React.ReactNode;
@@ -98,8 +99,14 @@ const FeaturesSection: React.FC = () => {
       <div className="container px-4 mx-auto relative z-10">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Why <span className="text-green-400">choose</span> our{" "}
-            <span className="text-green-400">tools</span>
+            <TextAnimation text="Why" type="letter" />{" "}
+            <span className="text-green-400">
+              <TextAnimation text="choose" type="letter" isGreen={true} />
+            </span>{" "}
+            <TextAnimation text="our" type="letter" />{" "}
+            <span className="text-green-400">
+              <TextAnimation text="tools" type="letter" isGreen={true} />
+            </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Our automation tools are designed to make your workflow more

@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import TextAnimation from "./animations/TextAnimation";
 
 const CTASection: React.FC = () => {
   return (
@@ -21,8 +22,16 @@ const CTASection: React.FC = () => {
           viewport={{ once: true }}
         >
           <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
-            Ready to <span className="text-green-400">boost</span> your{" "}
-            <span className="text-green-400">productivity</span>?
+            <TextAnimation text="Ready" type="letter" />{" "}
+            <TextAnimation text="to" type="letter" />{" "}
+            <span className="text-green-400">
+              <TextAnimation text="boost" type="letter" isGreen={true} />
+            </span>{" "}
+            <TextAnimation text="your" type="letter" />{" "}
+            <span className="text-green-400">
+              <TextAnimation text="productivity" type="letter" isGreen={true} />
+            </span>
+            <TextAnimation text="?" type="letter" />
           </h2>
           <p className="text-xl text-gray-300 mb-10">
             Join thousands of satisfied users who have transformed their

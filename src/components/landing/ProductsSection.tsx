@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { useAuth } from "../../../supabase/auth";
 import { supabase } from "../../../supabase/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import DrippingCircles from "./animations/DrippingCircles";
+import TextAnimation from "./animations/TextAnimation";
 
 interface Plan {
   id: string;
@@ -233,11 +235,16 @@ const ProductsSection: React.FC = () => {
   };
 
   return (
-    <section className="py-20 bg-white">
-      <div className="container px-4 mx-auto">
+    <section className="py-20 bg-white relative">
+      {/* Dripping circles effect at the top of the section */}
+      <DrippingCircles />
+      <div className="container px-4 mx-auto relative z-20">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
-            Our <span className="text-green-400">products</span>
+            <TextAnimation text="Our" type="letter" />{" "}
+            <span className="text-green-400">
+              <TextAnimation text="products" type="letter" isGreen={true} />
+            </span>
           </h2>
           <p className="text-xl text-gray-700 max-w-3xl mx-auto">
             Explore our suite of powerful automation tools designed to

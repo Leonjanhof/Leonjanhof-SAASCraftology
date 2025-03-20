@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Star } from "lucide-react";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import TextAnimation from "./animations/TextAnimation";
 
 interface TestimonialProps {
   content: string;
@@ -194,7 +195,12 @@ const TestimonialsSection: React.FC = () => {
       <div className="container px-4 mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            What our <span className="text-green-400">clients</span> say
+            <TextAnimation text="What" type="letter" />{" "}
+            <TextAnimation text="our" type="letter" />{" "}
+            <span className="text-green-400">
+              <TextAnimation text="clients" type="letter" isGreen={true} />
+            </span>{" "}
+            <TextAnimation text="say" type="letter" />
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Don't just take our word for it - hear from some of our satisfied

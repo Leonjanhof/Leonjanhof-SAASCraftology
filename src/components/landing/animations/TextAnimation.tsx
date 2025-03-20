@@ -42,6 +42,7 @@ const TextAnimation: React.FC<TextAnimationProps> = ({
         duration: 0.5,
         ease: "easeOut",
       },
+      viewport: { once: true, margin: "-100px" },
     };
   };
 
@@ -51,7 +52,21 @@ const TextAnimation: React.FC<TextAnimationProps> = ({
         <motion.span
           key={`${text}-${index}`}
           className={`inline-block ${type === "word" ? "mr-[0.25em]" : ""}`}
-          {...getAnimation(index)}
+          initial="hidden"
+          whileInView="visible"
+          variants={{
+            hidden: { y: 20, opacity: 0 },
+            visible: {
+              y: 0,
+              opacity: 1,
+              transition: {
+                delay: delay + index * (type === "letter" ? 0.05 : 0.03),
+                duration: 0.5,
+                ease: "easeOut",
+              },
+            },
+          }}
+          viewport={{ once: true, margin: "-100px" }}
         >
           {item}
         </motion.span>

@@ -75,6 +75,30 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          permission: string
+          role_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          permission: string
+          role_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          permission?: string
+          role_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number | null
@@ -150,6 +174,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role_name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role_name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role_name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           avatar_url: string | null
@@ -160,7 +208,6 @@ export type Database = {
           id: string
           image: string | null
           name: string | null
-          role: string
           subscription: string | null
           token_identifier: string
           updated_at: string | null
@@ -175,7 +222,6 @@ export type Database = {
           id?: string
           image?: string | null
           name?: string | null
-          role?: string
           subscription?: string | null
           token_identifier: string
           updated_at?: string | null
@@ -190,7 +236,6 @@ export type Database = {
           id?: string
           image?: string | null
           name?: string | null
-          role?: string
           subscription?: string | null
           token_identifier?: string
           updated_at?: string | null
@@ -233,15 +278,47 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      custom_access_token_hook: {
+        Args: {
+          event: Json
+        }
+        Returns: Json
+      }
       generate_license_key: {
         Args: {
           product_code: string
         }
         Returns: string
       }
-      set_user_as_admin: {
+      get_user_permissions: {
+        Args: {
+          user_id: string
+        }
+        Returns: string[]
+      }
+      get_user_role: {
+        Args: {
+          user_uuid: string
+        }
+        Returns: string
+      }
+      is_admin: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
+      set_user_role: {
         Args: {
           user_email: string
+          new_role: string
+        }
+        Returns: boolean
+      }
+      user_has_permission: {
+        Args: {
+          user_uuid: string
+          required_permission: string
         }
         Returns: boolean
       }

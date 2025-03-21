@@ -7,6 +7,7 @@ import Dashboard from "./components/pages/dashboard";
 import Success from "./components/pages/success";
 import Home from "./components/pages/home";
 import AuthProvider, { useAuth } from "../supabase/auth";
+import AuthCallback from "./components/auth/AuthCallback";
 
 // Lazy load the admin component
 const AdminDashboard = lazy(
@@ -107,6 +108,7 @@ function AppRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginForm />} />
           <Route path="/signup" element={<SignUpForm />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route
             path="/dashboard"
             element={

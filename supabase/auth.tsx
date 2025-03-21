@@ -135,160 +135,169 @@ export default function AuthProvider({
   };
 
   useEffect(() => {
-    // Initialize auth state
-    const initAuth = async () => {
+    async function initAuth() {
       try {
         setLoading(true);
 
-        // Get the current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Check active sessions
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
         if (sessionError) throw sessionError;
 
         if (session?.user) {
           setUser(session.user);
-          
-          // Get user data including role
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select(`
-              id,
-              email,
-              full_name,
-              user_roles!inner (
-                role_name
-              )
-            `)
-            .eq('id', session.user.id)
-            .single();
 
-          if (userError) {
-            console.error("Error fetching user data:", userError);
-          } else if (userData) {
-            const userDataWithRole = {
-              id: userData.id,
-              email: userData.email,
-              full_name: userData.full_name,
-              role: userData.user_roles.role_name as UserRole,
+          // Use user metadata first if available
+          const userMetadata = session.user.user_metadata;
+
+          // Fetch additional user data from the database
+          const data = await fetchUserData(session.user.id, userMetadata);
+          if (data) {
+            setUserData(data);
+            setIsAdmin(data.role === "admin");
+          } else if (userMetadata) {
+            // Fallback to metadata only
+            const basicUserData = {
+              id: session.user.id,
+              email: session.user.email || "",
+              full_name: userMetadata.full_name || "User",
+              role: userMetadata.role || "user",
             };
-            setUserData(userDataWithRole);
-            setIsAdmin(userDataWithRole.role === 'admin');
+            setUserData(basicUserData as UserData);
+            setIsAdmin(basicUserData.role === "admin");
           }
+        } else {
+          setUser(null);
+          setUserData(null);
+          setIsAdmin(false);
         }
+
+        setError(null);
       } catch (e) {
         console.error("Auth initialization error:", e);
+        // Don't set error to prevent blocking the UI
+        // setError("Authentication service is currently unavailable.");
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     initAuth();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event);
-      
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user) {
-          setUser(session.user);
-          
-          // Fetch fresh user data
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select(`
-              id,
-              email,
-              full_name,
-              user_roles!inner (
-                role_name
-              )
-            `)
-            .eq('id', session.user.id)
-            .single();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
 
-          if (userError) {
-            console.error("Error fetching user data:", userError);
-          } else if (userData) {
-            const userDataWithRole = {
-              id: userData.id,
-              email: userData.email,
-              full_name: userData.full_name,
-              role: userData.user_roles.role_name as UserRole,
-            };
-            setUserData(userDataWithRole);
-            setIsAdmin(userDataWithRole.role === 'admin');
-          }
+        // Use user metadata first if available
+        const userMetadata = session.user.user_metadata;
+
+        // Fetch additional user data from the database
+        const data = await fetchUserData(session.user.id, userMetadata);
+        if (data) {
+          setUserData(data);
+          setIsAdmin(data.role === "admin");
+        } else if (userMetadata) {
+          // Fallback to metadata only
+          const basicUserData = {
+            id: session.user.id,
+            email: session.user.email || "",
+            full_name: userMetadata.full_name || "User",
+            role: userMetadata.role || "user",
+          };
+          setUserData(basicUserData as UserData);
+          setIsAdmin(basicUserData.role === "admin");
         }
-      } else if (event === 'SIGNED_OUT') {
+      } else {
         setUser(null);
         setUserData(null);
         setIsAdmin(false);
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       setLoading(true);
-      
-      // First, sign up the user with Supabase Auth
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      // Sign up the user with Supabase Auth
+      const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/login?confirmed=true`,
+          shouldCreateUser: true,
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (error) throw error;
 
+      // If signup was successful and we have a user, create an entry in the public.users table
       if (authData.user) {
+        console.log("Creating user record for:", authData.user.id);
+
         try {
-          // Create the user record in your users table
-          const { error: userError } = await supabase
-            .from('users')
-            .insert({
-              id: authData.user.id,
-              email: email,
-              full_name: fullName,
+          // Insert the new user with all required fields
+          const { error: insertError } = await supabase.from("users").insert({
+            id: authData.user.id,
+            email: email,
+            full_name: fullName,
+            token_identifier: authData.user.id, // Use user ID as token identifier
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+
+          if (insertError) {
+            console.error("Error creating user record:", insertError);
+            // Continue anyway - the auth record is created
+            console.log("Continuing with auth record only");
+          }
+
+          // The trigger function will automatically add the user role
+          // but we'll also try to add it explicitly as a fallback
+          const { error: roleError } = await supabase.from("user_roles").upsert(
+            {
+              user_id: authData.user.id,
+              role_name: "user",
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
-            });
-
-          if (userError) {
-            console.error("Error creating user record:", userError);
-          }
-
-          // Insert into user_roles table
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: authData.user.id,
-              role_name: 'user',
-              created_at: new Date().toISOString(),
-            });
+            },
+            {
+              onConflict: "user_id",
+            },
+          );
 
           if (roleError) {
-            console.error("Error setting user role:", roleError);
+            console.error("Error creating user role:", roleError);
           }
+        } catch (insertErr) {
+          console.error("Exception creating user record:", insertErr);
+          // Continue anyway - the auth record is created
+          console.log("Continuing with auth record only");
+        }
 
-          // Set initial user data
+        // Set user data from the metadata to avoid database query
+        if (authData.user.user_metadata) {
           const userData = {
             id: authData.user.id,
             email: email,
             full_name: fullName,
-            role: 'user',
-            permissions: ['access_dashboard', 'manage_own_licenses', 'update_profile'],
+            role: "user",
+            permissions: [
+              "access_dashboard",
+              "manage_own_licenses",
+              "update_profile",
+            ],
           };
           setUserData(userData as UserData);
-        } catch (dbError) {
-          console.error("Database operation failed:", dbError);
         }
       }
 

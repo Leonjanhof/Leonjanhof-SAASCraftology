@@ -7,13 +7,13 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
 import { LogIn } from "lucide-react";
 import { supabase } from "../../../supabase/supabase";
+import { toast } from "@/components/ui/use-toast";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -22,37 +22,40 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const [lastEmailUsed, setLastEmailUsed] = useState("");
-  const { signIn } = useAuth();
+  const { signIn, refreshSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const confirmed = params.get("confirmed") === "true";
-  const access_token = params.get("access_token");
-  const refresh_token = params.get("refresh_token");
 
   useEffect(() => {
-    if (access_token && refresh_token) {
-      // Set the session with the tokens from the URL
-      supabase.auth
-        .setSession({
-          access_token,
-          refresh_token,
-        })
-        .then(({ data, error }) => {
-          if (!error && data.session) {
-            // Check if the user's email is verified
-            const user = data.session.user;
-            if (user && user.email_confirmed_at) {
-              console.log("Email verified at:", user.email_confirmed_at);
-            }
-            navigate("/");
-          } else if (error) {
-            console.error("Error setting session:", error);
-            setError("Failed to authenticate. Please try logging in again.");
-          }
+    const handleAuthCallback = async () => {
+      const params = new URLSearchParams(location.search);
+      const confirmed = params.get("confirmed") === "true";
+      const error = params.get("error");
+      const error_description = params.get("error_description");
+
+      if (error) {
+        console.error("Auth error:", error, error_description);
+        toast({
+          title: "Authentication Error",
+          description: error_description || "An error occurred during authentication",
+          variant: "destructive",
         });
-    }
-  }, [access_token, refresh_token, navigate]);
+        return;
+      }
+
+      if (confirmed) {
+        toast({
+          title: "Email Confirmed",
+          description: "Your email has been confirmed. You can now sign in.",
+          variant: "default",
+        });
+        // Clear the URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    handleAuthCallback();
+  }, [location.search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,37 +65,69 @@ export default function LoginForm() {
 
     try {
       await signIn(email, password);
-      navigate("/");
+      await refreshSession(); // Ensure we have the latest user data
+      navigate("/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
-      // Use the error message directly since we're now properly formatting it in signIn
-      setError(error.message || "Invalid email or password");
+      setError(error.message);
+      
+      // Handle specific error cases
+      if (error.message === "Email not confirmed") {
+        toast({
+          title: "Email Not Confirmed",
+          description: "Please check your email and confirm your account before signing in.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Login Failed",
+          description: error.message || "Invalid email or password",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!lastEmailUsed) {
+      setError("Please enter your email address first");
+      return;
+    }
+
+    try {
+      setResendingEmail(true);
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: lastEmailUsed,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Confirmation Email Sent",
+        description: "Please check your inbox for the confirmation email.",
+        variant: "default",
+      });
+    } catch (error: any) {
+      console.error("Error resending confirmation:", error);
+      toast({
+        title: "Failed to Resend",
+        description: "Could not resend confirmation email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setResendingEmail(false);
     }
   };
 
   return (
     <AuthLayout>
       <Card className="w-full">
-        {confirmed && (
-          <div
-            className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4"
-            role="alert"
-          >
-            <strong className="font-bold">Email confirmed! </strong>
-            <span className="block sm:inline">You can now sign in.</span>
-          </div>
-        )}
-        {access_token && refresh_token && (
-          <div
-            className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4"
-            role="alert"
-          >
-            <strong className="font-bold">Authentication successful! </strong>
-            <span className="block sm:inline">Redirecting you...</span>
-          </div>
-        )}
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
             <LogIn className="h-5 w-5" /> Sign in
@@ -134,28 +169,7 @@ export default function LoginForm() {
                   variant="outline"
                   className="w-full"
                   disabled={resendingEmail}
-                  onClick={async () => {
-                    try {
-                      setResendingEmail(true);
-                      const { error } = await supabase.auth.resend({
-                        type: "signup",
-                        email: lastEmailUsed,
-                        options: {
-                          emailRedirectTo: `${window.location.origin}/login?confirmed=true`,
-                        },
-                      });
-                      if (error) throw error;
-                      setError(
-                        "Confirmation email resent. Please check your inbox.",
-                      );
-                    } catch (e) {
-                      setError(
-                        "Failed to resend confirmation email. Please try again.",
-                      );
-                    } finally {
-                      setResendingEmail(false);
-                    }
-                  }}
+                  onClick={handleResendConfirmation}
                 >
                   {resendingEmail ? "Sending..." : "Resend confirmation email"}
                 </Button>
@@ -173,14 +187,6 @@ export default function LoginForm() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-slate-600">
-            Don't have an account?{" "}
-            <Link to="/signup" className="text-primary hover:underline">
-              Sign up
-            </Link>
-          </div>
-        </CardFooter>
       </Card>
     </AuthLayout>
   );

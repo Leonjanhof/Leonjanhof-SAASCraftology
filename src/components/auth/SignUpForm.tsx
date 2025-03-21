@@ -7,12 +7,12 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
 import { UserPlus } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 export default function SignUpForm() {
   const [email, setEmail] = useState("");
@@ -25,7 +25,7 @@ export default function SignUpForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(""); // Clear previous errors
+    setError("");
     setIsLoading(true);
 
     if (!email || !password || !fullName) {
@@ -36,14 +36,23 @@ export default function SignUpForm() {
 
     try {
       await signUp(email, password, fullName);
-      // Show success message before redirecting
-      alert(
-        "Account created successfully! Please check your email to verify your account.",
-      );
+      
+      toast({
+        title: "Account Created",
+        description: "Please check your email to verify your account.",
+        variant: "default",
+      });
+      
       navigate("/login");
     } catch (error: any) {
       console.error("Signup error:", error);
-      setError(error.message || "Error creating account. Please try again.");
+      setError(error.message);
+      
+      toast({
+        title: "Signup Failed",
+        description: error.message || "Error creating account. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -104,14 +113,6 @@ export default function SignUpForm() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-slate-600">
-            Already have an account?{" "}
-            <Link to="/login" className="text-primary hover:underline">
-              Sign in
-            </Link>
-          </div>
-        </CardFooter>
       </Card>
     </AuthLayout>
   );

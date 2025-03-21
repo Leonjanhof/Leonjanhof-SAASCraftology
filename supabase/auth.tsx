@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
-type UserRole = "user" | "admin";
+type UserRole = "admin" | "user";
 
 type UserData = {
   id: string;
@@ -21,6 +21,7 @@ type AuthContextType = {
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,148 +39,72 @@ export default function AuthProvider({
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Function to fetch user data from the database
-  const fetchUserData = async (userId: string, userData?: any) => {
-    // If userData is already provided, use it instead of making a database call
-    if (userData && userData.full_name) {
-      return {
-        id: userId,
-        email: userData.email || "",
-        full_name: userData.full_name || "",
-        role: userData.role || "user",
-      } as UserData;
-    }
-
+  const fetchUserData = async (userId: string): Promise<UserData | null> => {
     try {
-      // First try to get user metadata from auth.users
-      const { data: authUser } = await supabase.auth.getUser();
-      const userMetadata = authUser?.user?.user_metadata;
-
-      // Get user role from the user_roles table
-      const { data: userRole, error: roleError } = await supabase
+      // First, get user role
+      const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role_name")
         .eq("user_id", userId)
         .single();
 
-      // Get user permissions based on their role
-      let permissions: string[] = [];
-      if (userRole?.role_name) {
-        const { data: permissionsData } = await supabase
-          .from("role_permissions")
-          .select("permission")
-          .eq("role_name", userRole.role_name);
-
-        permissions = permissionsData?.map((p) => p.permission) || [];
+      if (roleError && roleError.code !== "PGRST116") {
+        console.error("Error fetching user role:", roleError);
       }
 
-      // If we have user metadata, use it for basic info
-      if (userMetadata && userMetadata.full_name) {
-        return {
-          id: userId,
-          email: authUser?.user?.email || "",
-          full_name: userMetadata.full_name || "",
-          role: userRole?.role_name || "user",
-          permissions,
-        } as UserData;
-      }
-
-      // If that fails, try the database query with a timeout
-      const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error("Database query timeout")), 3000);
-      });
-
-      const queryPromise = supabase
+      // Then get user details
+      const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("id, email, full_name")
+        .select("*")
         .eq("id", userId)
         .single();
 
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise])
-        .then(
-          (result) =>
-            result as typeof queryPromise extends Promise<infer T> ? T : never,
-        )
-        .catch((err) => {
-          console.error("Timeout or error fetching user data:", err);
-          return { data: null, error: err };
-        });
-
-      if (error) {
-        console.error("Error fetching user data:", error);
-        // Return a default user object to prevent blocking the auth flow
-        return {
-          id: userId,
-          email: authUser?.user?.email || "",
-          full_name: userMetadata?.full_name || "User",
-          role: userRole?.role_name || "user",
-          permissions,
-        } as UserData;
+      if (userError) {
+        console.error("Error fetching user data:", userError);
+        return null;
       }
 
       return {
-        ...data,
-        role: userRole?.role_name || "user",
-        permissions,
-      } as UserData;
-    } catch (error) {
-      console.error("Exception fetching user data:", error);
-      // Return a default user object to prevent blocking the auth flow
-      return {
         id: userId,
-        email: "",
-        full_name: "User",
-        role: "user",
-        permissions: [],
-      } as UserData;
+        email: userData.email || "",
+        full_name: userData.full_name || "",
+        role: (roleData?.role_name as UserRole) || "user",
+        permissions: ["access_dashboard", "manage_own_licenses", "update_profile"],
+      };
+    } catch (error) {
+      console.error("Error in fetchUserData:", error);
+      return null;
     }
   };
 
+  // Function to refresh the session and user data
+  const refreshSession = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      if (session?.user) {
+        setUser(session.user);
+        const data = await fetchUserData(session.user.id);
+        if (data) {
+          setUserData(data);
+          setIsAdmin(data.role === "admin");
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing session:", error);
+    }
+  };
+
+  // Initialize auth state
   useEffect(() => {
     async function initAuth() {
       try {
         setLoading(true);
-
-        // Check active sessions
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (sessionError) throw sessionError;
-
-        if (session?.user) {
-          setUser(session.user);
-
-          // Use user metadata first if available
-          const userMetadata = session.user.user_metadata;
-
-          // Fetch additional user data from the database
-          const data = await fetchUserData(session.user.id, userMetadata);
-          if (data) {
-            setUserData(data);
-            setIsAdmin(data.role === "admin");
-          } else if (userMetadata) {
-            // Fallback to metadata only
-            const basicUserData = {
-              id: session.user.id,
-              email: session.user.email || "",
-              full_name: userMetadata.full_name || "User",
-              role: userMetadata.role || "user",
-            };
-            setUserData(basicUserData as UserData);
-            setIsAdmin(basicUserData.role === "admin");
-          }
-        } else {
-          setUser(null);
-          setUserData(null);
-          setIsAdmin(false);
-        }
-
+        await refreshSession();
         setError(null);
       } catch (e) {
         console.error("Auth initialization error:", e);
-        // Don't set error to prevent blocking the UI
-        // setError("Authentication service is currently unavailable.");
       } finally {
         setLoading(false);
       }
@@ -187,30 +112,16 @@ export default function AuthProvider({
 
     initAuth();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event);
+      
       if (session?.user) {
         setUser(session.user);
-
-        // Use user metadata first if available
-        const userMetadata = session.user.user_metadata;
-
-        // Fetch additional user data from the database
-        const data = await fetchUserData(session.user.id, userMetadata);
+        const data = await fetchUserData(session.user.id);
         if (data) {
           setUserData(data);
           setIsAdmin(data.role === "admin");
-        } else if (userMetadata) {
-          // Fallback to metadata only
-          const basicUserData = {
-            id: session.user.id,
-            email: session.user.email || "",
-            full_name: userMetadata.full_name || "User",
-            role: userMetadata.role || "user",
-          };
-          setUserData(basicUserData as UserData);
-          setIsAdmin(basicUserData.role === "admin");
         }
       } else {
         setUser(null);
@@ -222,89 +133,152 @@ export default function AuthProvider({
     return () => subscription.unsubscribe();
   }, []);
 
+  // Handle email confirmation and auth callbacks
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        const type = params.get('type');
+        const error = params.get('error');
+        const error_description = params.get('error_description');
+
+        // Handle errors
+        if (error) {
+          console.error("Auth callback error:", error, error_description);
+          throw new Error(error_description || "Authentication error");
+        }
+
+        // Handle successful auth
+        if ((access_token && refresh_token) || type === 'email_confirmation') {
+          setLoading(true);
+          
+          try {
+            let session;
+            if (access_token && refresh_token) {
+              const { data, error } = await supabase.auth.setSession({
+                access_token,
+                refresh_token,
+              });
+              if (error) throw error;
+              session = data.session;
+            } else {
+              const { data, error } = await supabase.auth.getSession();
+              if (error) throw error;
+              session = data.session;
+            }
+
+            if (session?.user) {
+              // Ensure user role exists
+              const { error: roleError } = await supabase
+                .from("user_roles")
+                .upsert(
+                  {
+                    user_id: session.user.id,
+                    role_name: "user",
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  },
+                  { onConflict: "user_id" }
+                );
+
+              if (roleError) {
+                console.error("Error ensuring user role:", roleError);
+              }
+
+              // Refresh user data
+              await refreshSession();
+
+              // Clear URL parameters
+              window.history.replaceState({}, document.title, window.location.pathname);
+
+              // Redirect to dashboard
+              window.location.href = '/dashboard';
+            }
+          } catch (error) {
+            console.error("Error in auth callback:", error);
+            throw error;
+          } finally {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error("Auth callback handler error:", error);
+        setError(error instanceof Error ? error.message : "Authentication error");
+      }
+    };
+
+    handleAuthCallback();
+  }, []);
+
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       setLoading(true);
-      // Sign up the user with Supabase Auth
+      setError(null);
+
+      // Sign up with Supabase Auth
       const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
+            role: 'user'
           },
-          emailRedirectTo: `${window.location.origin}/login?confirmed=true`,
-          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
       if (error) throw error;
 
-      // If signup was successful and we have a user, create an entry in the public.users table
       if (authData.user) {
-        console.log("Creating user record for:", authData.user.id);
-
         try {
-          // Insert the new user with all required fields
+          // Create user record
           const { error: insertError } = await supabase.from("users").insert({
             id: authData.user.id,
             email: email,
             full_name: fullName,
-            token_identifier: authData.user.id, // Use user ID as token identifier
+            token_identifier: authData.user.id,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
 
           if (insertError) {
             console.error("Error creating user record:", insertError);
-            // Continue anyway - the auth record is created
-            console.log("Continuing with auth record only");
           }
 
-          // The trigger function will automatically add the user role
-          // but we'll also try to add it explicitly as a fallback
-          const { error: roleError } = await supabase.from("user_roles").upsert(
-            {
-              user_id: authData.user.id,
-              role_name: "user",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            {
-              onConflict: "user_id",
-            },
-          );
+          // Create user role
+          const { error: roleError } = await supabase.from("user_roles").insert({
+            user_id: authData.user.id,
+            role_name: "user",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
 
           if (roleError) {
             console.error("Error creating user role:", roleError);
+            // Try upsert as fallback
+            const { error: upsertError } = await supabase.from("user_roles").upsert(
+              {
+                user_id: authData.user.id,
+                role_name: "user",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id" }
+            );
+            if (upsertError) {
+              console.error("Error upserting user role:", upsertError);
+            }
           }
-        } catch (insertErr) {
-          console.error("Exception creating user record:", insertErr);
-          // Continue anyway - the auth record is created
-          console.log("Continuing with auth record only");
-        }
-
-        // Set user data from the metadata to avoid database query
-        if (authData.user.user_metadata) {
-          const userData = {
-            id: authData.user.id,
-            email: email,
-            full_name: fullName,
-            role: "user",
-            permissions: [
-              "access_dashboard",
-              "manage_own_licenses",
-              "update_profile",
-            ],
-          };
-          setUserData(userData as UserData);
+        } catch (error) {
+          console.error("Error in user creation:", error);
         }
       }
-
-      setError(null);
-    } catch (e: any) {
-      console.error("Sign up error:", e);
-      throw new Error(e.message || "Failed to sign up");
+    } catch (error) {
+      console.error("Sign up error:", error);
+      throw error instanceof Error ? error : new Error('Failed to sign up');
     } finally {
       setLoading(false);
     }
@@ -313,71 +287,29 @@ export default function AuthProvider({
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      setError(null);
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        // Handle specific error cases
-        if (error.status === 400) {
-          if (error.message.includes("Invalid login credentials")) {
-            throw new Error("Invalid email or password");
-          } else if (error.message.includes("Email not confirmed")) {
-            throw new Error("Email not confirmed");
-          }
-        }
-        throw error;
-      }
-
-      // Check if the user's email is verified
-      if (data.user && !data.user.email_confirmed_at) {
-        console.warn("User email not verified:", data.user.email);
-        // Check if the user exists in the database despite not being verified
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", data.user.id)
-          .single();
-
-        if (userError || !userData) {
-          throw new Error("Email not confirmed");
-        } else {
-          console.log("User exists in database despite unverified email");
-        }
-      }
+      if (error) throw error;
 
       if (data.user) {
-        // Use user metadata first if available
-        const userMetadata = data.user.user_metadata;
+        if (!data.user.email_confirmed_at) {
+          throw new Error("Email not confirmed");
+        }
 
-        // Fetch additional user data from the database
-        const userData = await fetchUserData(data.user.id, userMetadata);
+        const userData = await fetchUserData(data.user.id);
         if (userData) {
           setUserData(userData);
           setIsAdmin(userData.role === "admin");
-        } else {
-          // Fallback to basic user data
-          const basicUserData = {
-            id: data.user.id,
-            email: data.user.email || email,
-            full_name: userMetadata?.full_name || "User",
-            role: userMetadata?.role || "user",
-          };
-          setUserData(basicUserData as UserData);
-          setIsAdmin(basicUserData.role === "admin");
         }
       }
-
-      setError(null);
-    } catch (e: any) {
-      console.error("Sign in error:", e);
-      // Don't wrap the error in another Error object if it's already formatted
-      if (e instanceof Error) {
-        throw e;
-      } else {
-        throw new Error(e.message || "Failed to sign in");
-      }
+    } catch (error) {
+      console.error("Sign in error:", error);
+      throw error instanceof Error ? error : new Error('Failed to sign in');
     } finally {
       setLoading(false);
     }
@@ -385,15 +317,22 @@ export default function AuthProvider({
 
   const signOut = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
       setUser(null);
       setUserData(null);
       setIsAdmin(false);
       setError(null);
-    } catch (e: any) {
-      console.error("Sign out error:", e);
-      throw new Error(e.message || "Failed to sign out");
+      
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (error) {
+      console.error("Sign out error:", error);
+      throw error instanceof Error ? error : new Error('Failed to sign out');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -427,6 +366,7 @@ export default function AuthProvider({
         signUp,
         signOut,
         isAdmin,
+        refreshSession,
       }}
     >
       {children}

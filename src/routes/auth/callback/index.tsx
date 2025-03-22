@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../../supabase/supabase';
 import { toast } from '@/components/ui/use-toast';
+import { useAuth } from '../../../../supabase/auth';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
+  const { refreshSession } = useAuth();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -17,6 +19,9 @@ export default function AuthCallback() {
           // Exchange the code for a session
           const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
           if (sessionError) throw sessionError;
+
+          // Refresh the session to get the latest user data
+          await refreshSession();
 
           // Fetch the user data after successful authentication
           const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -69,9 +74,10 @@ export default function AuthCallback() {
                 variant: "default",
               });
             }
-          }
 
-          navigate(next);
+            // Ensure we're using window.location.href for a full page refresh
+            window.location.href = next;
+          }
         }
       } catch (error: any) {
         console.error('Error in auth callback:', error);
@@ -85,7 +91,7 @@ export default function AuthCallback() {
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, refreshSession]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

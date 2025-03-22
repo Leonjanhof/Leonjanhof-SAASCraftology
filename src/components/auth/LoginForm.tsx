@@ -114,7 +114,13 @@ export default function LoginForm() {
         throw error;
       }
 
-      // No need to handle redirect here - Supabase will do it automatically
+      // Check if we got the OAuth URL back and redirect to it
+      if (data?.url) {
+        // Redirect to the Discord OAuth URL
+        window.location.href = data.url;
+      } else {
+        throw new Error('No OAuth URL returned from Supabase');
+      }
       
     } catch (error: any) {
       console.error("Discord login error:", error);

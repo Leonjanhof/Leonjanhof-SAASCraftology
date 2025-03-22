@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import { toast } from "react-hot-toast";
+import { toast } from "@/components/ui/use-toast";
 
 type UserRole = "admin" | "user";
 
@@ -230,9 +230,6 @@ export default function AuthProvider({
       setLoading(true);
       setError(null);
 
-      const redirectTo = `${window.location.origin}/auth/callback?type=email_confirmation`;
-      console.log("Signup redirect URL:", redirectTo);
-
       // Sign up with Supabase Auth
       const { data: authData, error } = await supabase.auth.signUp({
         email,
@@ -242,17 +239,11 @@ export default function AuthProvider({
             full_name: fullName,
             role: 'user'
           },
-          emailRedirectTo: redirectTo,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
       if (error) throw error;
-
-      console.log("Signup successful:", {
-        userId: authData.user?.id,
-        emailConfirmed: authData.user?.email_confirmed_at,
-        session: !!authData.session
-      });
 
       if (authData.user) {
         try {
@@ -274,11 +265,9 @@ export default function AuthProvider({
         }
       }
 
-      // Show success message
       toast({
         title: "Verification Email Sent",
         description: "Please check your email to verify your account. Check your spam folder if you don't see it.",
-        duration: 6000,
       });
 
     } catch (error) {

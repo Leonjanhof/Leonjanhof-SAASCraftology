@@ -101,11 +101,17 @@ export default function LoginForm() {
   const handleDiscordSignIn = async () => {
     try {
       setIsLoading(true);
+
+      // Make sure we're using the correct redirect URL
+      // Use the current origin instead of hardcoded URL
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      console.log("Using redirect URL:", redirectUrl);
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "discord",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: "identify email guilds",
+          redirectTo: redirectUrl,
+          scopes: "identify email", // Simplified scopes to reduce permissions requested
         },
       });
 
@@ -115,7 +121,16 @@ export default function LoginForm() {
 
       if (data?.url) {
         console.log("Redirecting to Discord OAuth:", data.url);
-        window.location.href = data.url;
+        // Show a toast before redirecting
+        toast({
+          title: "Redirecting to Discord",
+          description: "You'll be redirected to Discord to complete sign in.",
+        });
+
+        // Short delay to allow toast to show
+        setTimeout(() => {
+          window.location.href = data.url;
+        }, 500);
       }
     } catch (error: any) {
       console.error("Discord login error:", error);
@@ -124,7 +139,6 @@ export default function LoginForm() {
         description: "Could not sign in with Discord. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };

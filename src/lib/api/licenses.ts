@@ -24,12 +24,12 @@ export async function getUserLicenses(): Promise<License[]> {
 
     if (userError) {
       console.error("Error getting current user:", userError);
-      return [];
+      throw new Error("Failed to authenticate user");
     }
 
     if (!user) {
       console.error("No authenticated user found");
-      return [];
+      throw new Error("No authenticated user found");
     }
 
     console.log("Fetching licenses for user ID:", user.id);

@@ -35,23 +35,23 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white flex flex-wrap justify-center">
-              <span className="inline-block mr-2">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
+              <span className="block">
                 <TextAnimation text="Minecraft" type="letter" />
-              </span>{" "}
-              <span className="inline-block mr-2">
+              </span>
+              <span className="block text-green-400">
                 <TextAnimation
                   text="software"
                   type="letter"
                   isGreen
                   delay={0.3}
                 />
-              </span>{" "}
-              <span className="inline-block w-full sm:w-auto text-center sm:text-left">
+              </span>
+              <span className="block">
                 <TextAnimation text="solutions" type="letter" delay={0.6} />
               </span>
             </h1>
-            <p className="text-xl md:text-2xl mb-10 text-gray-300">
+            <p className="text-xl md:text-2xl mb-10 text-gray-300 max-w-2xl mx-auto text-center px-4">
               <TextAnimation
                 text="Craftology Inc.'s automation tools help you work smarter, not harder. Streamline your processes and increase productivity today."
                 type="word"

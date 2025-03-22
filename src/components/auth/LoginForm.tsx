@@ -24,9 +24,27 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const [lastEmailUsed, setLastEmailUsed] = useState("");
-  const { signIn, refreshSession } = useAuth();
+  const { signIn, refreshSession, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Check if user is already logged in and redirect if needed
+  useEffect(() => {
+    const checkAuthAndRedirect = async () => {
+      try {
+        // If we already have a user, redirect to dashboard
+        if (user) {
+          console.log("User already logged in, redirecting to dashboard");
+          // Use window.location for a hard redirect instead of navigate
+          window.location.href = "/dashboard";
+        }
+      } catch (error) {
+        console.error("Error checking auth status:", error);
+      }
+    };
+
+    checkAuthAndRedirect();
+  }, [user]);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -71,9 +89,15 @@ export default function LoginForm() {
     setLastEmailUsed(email);
 
     try {
+      console.log("Login: Starting sign-in process...");
       await signIn(email, password);
+      console.log("Login: Sign-in successful, refreshing session...");
+
       await refreshSession(); // Ensure we have the latest user data
-      navigate("/dashboard");
+      console.log("Login: Session refreshed, redirecting to dashboard...");
+
+      // Use window.location for a hard redirect
+      window.location.href = "/dashboard";
     } catch (error: any) {
       console.error("Login error:", error);
       setError(error.message);

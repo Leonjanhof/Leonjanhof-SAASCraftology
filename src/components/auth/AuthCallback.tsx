@@ -117,7 +117,10 @@ export default function AuthCallback() {
         await refreshSession();
 
         // Navigate to dashboard if successful
-        navigate("/dashboard");
+        console.log(
+          "AuthCallback: Authentication successful, redirecting to dashboard",
+        );
+        window.location.href = "/dashboard";
       } catch (error) {
         console.error("AuthCallback: Error in auth callback:", error);
 

@@ -38,9 +38,14 @@ const Dashboard = () => {
 
     // Add a timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
-      if (loading) {
+      console.log("Dashboard loading timeout check, current state:", {
+        loading,
+        isLoadingSubscriptions,
+      });
+      if (loading || isLoadingSubscriptions) {
         console.log("Dashboard loading timeout reached, forcing state update");
         setLoading(false);
+        setIsLoadingSubscriptions(false);
         toast({
           title: "Loading timeout",
           description:
@@ -48,7 +53,7 @@ const Dashboard = () => {
           variant: "destructive",
         });
       }
-    }, 10000); // 10 second timeout
+    }, 5000); // Reduced to 5 second timeout
 
     const initDashboard = async () => {
       try {
@@ -132,6 +137,7 @@ const Dashboard = () => {
     try {
       if (!user) {
         console.log("No user found, skipping license fetch");
+        setLoading(false);
         return [];
       }
 
@@ -139,6 +145,7 @@ const Dashboard = () => {
       const userLicenses = await getUserLicenses();
       console.log("Licenses fetched successfully:", userLicenses.length);
       setLicenses(userLicenses);
+      setLoading(false);
       return userLicenses;
     } catch (error) {
       console.error("Error fetching licenses:", error);
@@ -147,11 +154,9 @@ const Dashboard = () => {
         description: "Failed to load your licenses. Please try again later.",
         variant: "destructive",
       });
-      // Return empty array to prevent undefined errors
+      // Set loading to false on error and return empty array
+      setLoading(false);
       return [];
-    } finally {
-      // Don't set loading to false here, let the main useEffect handle it
-      // This prevents race conditions if multiple fetches are happening
     }
   };
 

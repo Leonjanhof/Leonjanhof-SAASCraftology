@@ -188,7 +188,7 @@ export default function AuthProvider({
       console.log("Auth state changed:", event);
 
       if (session?.user) {
-        // Check if user still exists in the database
+        // Check if user exists in the database
         const { data: userExists, error: userCheckError } = await supabase
           .from("users")
           .select("id")
@@ -199,7 +199,52 @@ export default function AuthProvider({
           console.error("Error checking if user exists:", userCheckError);
         }
 
-        if (!userExists) {
+        // For OAuth providers like Discord, we need to create a user record if it doesn't exist
+        if (
+          !userExists &&
+          (event === "SIGNED_IN" || event === "USER_UPDATED")
+        ) {
+          console.log(
+            "User doesn't exist in database, creating new user record",
+          );
+
+          try {
+            // Extract user information from the session
+            const fullName =
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.user_metadata?.preferred_username ||
+              session.user.email?.split("@")[0] ||
+              "User";
+
+            const provider = session.user.app_metadata?.provider || "discord";
+
+            // Create user record
+            const { error: insertError } = await supabase.from("users").insert({
+              id: session.user.id,
+              email: session.user.email,
+              full_name: fullName,
+              token_identifier: session.user.id,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              avatar_url: session.user.user_metadata?.avatar_url,
+            });
+
+            if (insertError) {
+              console.error("Error creating user record:", insertError);
+              // Don't sign out here, as the role might still be created by a trigger
+            } else {
+              console.log("Successfully created user record for OAuth user");
+              // Wait a moment for any triggers to complete
+              await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+          } catch (error) {
+            console.error("Error creating user record for OAuth login:", error);
+          }
+
+          // Refresh the session to get the latest data
+          await refreshSession();
+        } else if (!userExists) {
           console.log("User no longer exists in database, signing out");
           await signOut();
           return;
@@ -210,6 +255,12 @@ export default function AuthProvider({
         if (data) {
           setUserData(data);
           setIsAdmin(data.role === "admin");
+
+          // If this is a new sign-in and we have user data, redirect to dashboard
+          if (event === "SIGNED_IN") {
+            console.log("New sign-in detected, redirecting to dashboard");
+            window.location.href = "/dashboard";
+          }
         } else {
           // If we can't fetch user data, the user might have been deleted
           console.log("Could not fetch user data, signing out");
@@ -393,13 +444,76 @@ export default function AuthProvider({
 
     const handleAuthCallback = async () => {
       try {
+        setLoading(true);
+        console.log("Auth callback detected, processing authentication");
+
+        // Get the auth code from the URL
         const params = new URLSearchParams(window.location.search);
         const access_token = params.get("access_token");
         const refresh_token = params.get("refresh_token");
+        const code = params.get("code");
+        const provider = params.get("provider");
 
-        // Only handle access/refresh tokens here
+        // Handle OAuth callback (like Discord)
+        if (code || provider) {
+          console.log("OAuth callback detected", { code, provider });
+
+          // Let Supabase handle the OAuth exchange
+          const { data, error } = await supabase.auth.getSession();
+
+          if (error) {
+            console.error("Error getting session after OAuth:", error);
+            throw error;
+          }
+
+          if (data.session?.user) {
+            console.log("Session established after OAuth callback");
+            // Check if user exists in database and create if needed
+            const { data: userExists } = await supabase
+              .from("users")
+              .select("id")
+              .eq("id", data.session.user.id)
+              .maybeSingle();
+
+            if (!userExists) {
+              console.log("Creating user record for OAuth user");
+              try {
+                // Extract user information
+                const fullName =
+                  data.session.user.user_metadata?.full_name ||
+                  data.session.user.user_metadata?.name ||
+                  data.session.user.user_metadata?.preferred_username ||
+                  data.session.user.email?.split("@")[0] ||
+                  "User";
+
+                // Create user record
+                await supabase.from("users").insert({
+                  id: data.session.user.id,
+                  email: data.session.user.email,
+                  full_name: fullName,
+                  token_identifier: data.session.user.id,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  avatar_url: data.session.user.user_metadata?.avatar_url,
+                });
+
+                console.log("User record created successfully");
+                // Wait for triggers to complete
+                await new Promise((resolve) => setTimeout(resolve, 500));
+              } catch (createError) {
+                console.error("Error creating user record:", createError);
+              }
+            }
+
+            await refreshSession();
+            window.history.replaceState({}, document.title, "/");
+            window.location.href = "/dashboard";
+            return;
+          }
+        }
+
+        // Handle token-based auth (for email verification, etc.)
         if (access_token && refresh_token) {
-          setLoading(true);
           console.log("Setting session with tokens");
 
           try {
@@ -412,11 +526,7 @@ export default function AuthProvider({
 
             if (data.session?.user) {
               await refreshSession();
-              window.history.replaceState(
-                {},
-                document.title,
-                window.location.pathname,
-              );
+              window.history.replaceState({}, document.title, "/");
               window.location.href = "/dashboard";
             }
           } catch (error) {
@@ -432,7 +542,7 @@ export default function AuthProvider({
         toast({
           title: "Authentication Error",
           description:
-            error instanceof Error ? error.message : "Failed to verify email",
+            error instanceof Error ? error.message : "Failed to authenticate",
           variant: "destructive",
         });
         window.location.href = "/login";

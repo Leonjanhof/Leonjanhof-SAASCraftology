@@ -39,7 +39,8 @@ export default function LoginForm() {
         console.error("Auth error:", error, error_description);
         toast({
           title: "Authentication Error",
-          description: error_description || "An error occurred during authentication",
+          description:
+            error_description || "An error occurred during authentication",
           variant: "destructive",
         });
         return;
@@ -52,7 +53,11 @@ export default function LoginForm() {
           variant: "default",
         });
         // Clear the URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname,
+        );
       }
     };
 
@@ -72,12 +77,13 @@ export default function LoginForm() {
     } catch (error: any) {
       console.error("Login error:", error);
       setError(error.message);
-      
+
       // Handle specific error cases
       if (error.message === "Email not confirmed") {
         toast({
           title: "Email not confirmed",
-          description: "Please check your email and confirm your account before signing in.",
+          description:
+            "Please check your email and confirm your account before signing in.",
           variant: "destructive",
         });
       } else {
@@ -96,7 +102,11 @@ export default function LoginForm() {
     try {
       setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'discord'
+        provider: "discord",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: "identify email guilds",
+        },
       });
 
       if (error) {
@@ -104,12 +114,13 @@ export default function LoginForm() {
       }
 
       if (data?.url) {
+        console.log("Redirecting to Discord OAuth:", data.url);
         window.location.href = data.url;
       }
     } catch (error: any) {
       console.error("Discord login error:", error);
       toast({
-        title: "Login Failed",
+        title: "Login failed",
         description: "Could not sign in with Discord. Please try again.",
         variant: "destructive",
       });
@@ -144,7 +155,7 @@ export default function LoginForm() {
     } catch (error: any) {
       console.error("Error resending confirmation:", error);
       toast({
-        title: "Failed to Resend",
+        title: "Failed to resend",
         description: "Could not resend confirmation email. Please try again.",
         variant: "destructive",
       });
@@ -235,7 +246,9 @@ export default function LoginForm() {
                     disabled={resendingEmail}
                     onClick={handleResendConfirmation}
                   >
-                    {resendingEmail ? "Sending..." : "Resend confirmation email"}
+                    {resendingEmail
+                      ? "Sending..."
+                      : "Resend confirmation email"}
                   </Button>
                 </div>
               )}

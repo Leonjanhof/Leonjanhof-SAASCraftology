@@ -18,6 +18,24 @@ import { toast } from "@/components/ui/use-toast";
 import { Separator } from "@/components/ui/separator";
 
 export default function LoginForm() {
+  // Check if user is already logged in and redirect if needed
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const checkAuthAndRedirect = async () => {
+      try {
+        // If we already have a user, redirect to dashboard
+        if (user) {
+          console.log("User already logged in, redirecting to dashboard");
+          navigate("/dashboard");
+        }
+      } catch (error) {
+        console.error("Error checking auth status:", error);
+      }
+    };
+
+    checkAuthAndRedirect();
+  }, [user, navigate]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -71,9 +89,24 @@ export default function LoginForm() {
     setLastEmailUsed(email);
 
     try {
+      console.log("Login: Starting sign-in process...");
       await signIn(email, password);
+      console.log("Login: Sign-in successful, refreshing session...");
+
       await refreshSession(); // Ensure we have the latest user data
-      navigate("/dashboard");
+      console.log("Login: Session refreshed, navigating to dashboard...");
+
+      // Show success toast
+      toast({
+        title: "Login Successful",
+        description: "Redirecting you to the dashboard...",
+      });
+
+      // Add a small delay before navigation to ensure toast is shown
+      setTimeout(() => {
+        console.log("Login: Executing navigation to /dashboard");
+        navigate("/dashboard");
+      }, 500);
     } catch (error: any) {
       console.error("Login error:", error);
       setError(error.message);

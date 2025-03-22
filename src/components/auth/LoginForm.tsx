@@ -47,7 +47,7 @@ export default function LoginForm() {
 
       if (confirmed) {
         toast({
-          title: "Email Confirmed",
+          title: "Email confirmed",
           description: "Your email has been confirmed. You can now sign in.",
           variant: "default",
         });

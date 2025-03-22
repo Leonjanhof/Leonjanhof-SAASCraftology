@@ -21,17 +21,25 @@ const CTASection: React.FC = () => {
           transition={{ duration: 0.5 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
-            <TextAnimation text="Ready" type="letter" />{" "}
-            <TextAnimation text="to" type="letter" />{" "}
-            <span className="text-green-400">
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white flex flex-col sm:flex-row items-center justify-center gap-2">
+            <span className="text-green-400 block">
+              <TextAnimation text="Ready" type="letter" isGreen={true} />
+            </span>
+            <span className="block">
+              <TextAnimation text="to" type="letter" />
+            </span>
+            <span className="text-green-400 block">
               <TextAnimation text="boost" type="letter" isGreen={true} />
-            </span>{" "}
-            <TextAnimation text="your" type="letter" />{" "}
-            <span className="text-green-400">
+            </span>
+            <span className="block">
+              <TextAnimation text="your" type="letter" />
+            </span>
+            <span className="text-green-400 block">
               <TextAnimation text="productivity" type="letter" isGreen={true} />
             </span>
-            <TextAnimation text="?" type="letter" />
+            <span className="block">
+              <TextAnimation text="?" type="letter" />
+            </span>
           </h2>
           <p className="text-xl text-gray-300 mb-10">
             Join thousands of satisfied users who have transformed their

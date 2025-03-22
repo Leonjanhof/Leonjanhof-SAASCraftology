@@ -2,12 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../../../supabase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
@@ -37,21 +32,23 @@ export default function SignUpForm() {
 
     try {
       await signUp(email, password, fullName);
-      
+
       toast({
         title: "Account Created",
-        description: "Please check your email to verify your account. You can close this page.",
+        description:
+          "Please check your email to verify your account. You can close this page.",
         variant: "default",
       });
-      
+
       setIsVerificationSent(true);
     } catch (error: any) {
       console.error("Signup error:", error);
       setError(error.message);
-      
+
       toast({
         title: "Signup Failed",
-        description: error.message || "Error creating account. Please try again.",
+        description:
+          error.message || "Error creating account. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -69,9 +66,12 @@ export default function SignUpForm() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-center">
-            <p>We've sent a verification link to <strong>{email}</strong></p>
+            <p>
+              We've sent a verification link to <strong>{email}</strong>
+            </p>
             <p className="text-sm text-gray-500">
-              Please check your email (including spam folder) and click the verification link.
+              Please check your email (including spam folder) and click the
+              verification link.
             </p>
             <p className="text-sm text-gray-500">
               You can close this page - we'll redirect you after verification.
@@ -130,10 +130,13 @@ export default function SignUpForm() {
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button
               type="submit"
-              className="w-full bg-green-400 hover:bg-green-500 text-white"
+              className="w-full bg-green-400 hover:bg-white hover:text-green-400 text-white relative overflow-hidden group"
               disabled={isLoading}
             >
-              {isLoading ? "Creating account..." : "Create account"}
+              <span className="relative z-10 transition-colors duration-300">
+                {isLoading ? "Creating account..." : "Create account"}
+              </span>
+              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
             </Button>
           </form>
         </CardContent>

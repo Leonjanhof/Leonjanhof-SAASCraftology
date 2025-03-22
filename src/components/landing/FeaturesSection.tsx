@@ -98,13 +98,17 @@ const FeaturesSection: React.FC = () => {
       <FeaturesBackground />
       <div className="container px-4 mx-auto relative z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            <TextAnimation text="Why" type="letter" />{" "}
-            <span className="text-green-400">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 flex flex-col sm:flex-row items-center justify-center gap-2">
+            <span className="block">
+              <TextAnimation text="Why" type="letter" />
+            </span>
+            <span className="text-green-400 block">
               <TextAnimation text="choose" type="letter" isGreen={true} />
-            </span>{" "}
-            <TextAnimation text="our" type="letter" />{" "}
-            <span className="text-green-400">
+            </span>
+            <span className="block">
+              <TextAnimation text="our" type="letter" />
+            </span>
+            <span className="text-green-400 block">
               <TextAnimation text="tools" type="letter" isGreen={true} />
             </span>
           </h2>

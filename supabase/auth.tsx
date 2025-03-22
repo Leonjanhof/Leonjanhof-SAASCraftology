@@ -70,7 +70,11 @@ export default function AuthProvider({
         email: userData.email || "",
         full_name: userData.full_name || "",
         role: (roleData?.role_name as UserRole) || "user",
-        permissions: ["access_dashboard", "manage_own_licenses", "update_profile"],
+        permissions: [
+          "access_dashboard",
+          "manage_own_licenses",
+          "update_profile",
+        ],
       };
     } catch (error) {
       console.error("Error in fetchUserData:", error);
@@ -81,7 +85,10 @@ export default function AuthProvider({
   // Function to refresh the session and user data
   const refreshSession = async () => {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
       if (session?.user) {
@@ -114,9 +121,11 @@ export default function AuthProvider({
     initAuth();
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth state changed:", event);
-      
+
       if (session?.user) {
         setUser(session.user);
         const data = await fetchUserData(session.user.id);
@@ -137,61 +146,133 @@ export default function AuthProvider({
   // Check if we have a verification token in the URL
   useEffect(() => {
     const handleVerification = async () => {
+      // Check for various token formats in URL
       const params = new URLSearchParams(window.location.search);
-      const token = params.get('token_hash') || params.get('verification_token');
-      
-      if (!token) return;
+      const token_hash = params.get("token_hash");
+      const type = params.get("type");
+      const email = params.get("email");
+      const verification_token = params.get("verification_token");
 
-      console.log('[Auth] Found verification token, attempting verification...');
-      
+      // Log all possible token parameters for debugging
+      console.log("[Auth] URL parameters:", {
+        token_hash,
+        type,
+        email,
+        verification_token,
+        full_url: window.location.href,
+      });
+
+      // If we don't have any verification tokens, exit early
+      if (!token_hash && !verification_token) {
+        console.log("[Auth] No verification token found in URL");
+        return;
+      }
+
+      console.log(
+        "[Auth] Found verification token, attempting verification...",
+      );
+
       try {
         // First verify the token
-        const { error: verificationError } = await supabase.auth.verifyOtp({
-          token_hash: token,
-          type: 'email'
+        const { data: verificationData, error: verificationError } =
+          await supabase.auth.verifyOtp({
+            token_hash: token_hash || verification_token,
+            type: type || "email",
+          });
+
+        console.log("[Auth] Verification response:", {
+          verificationData,
+          error: verificationError,
         });
 
         if (verificationError) {
-          console.error('[Auth] Verification failed:', verificationError.message);
+          console.error(
+            "[Auth] Verification failed:",
+            verificationError.message,
+          );
           toast({
             title: "Verification Failed",
-            description: "There was a problem verifying your email. Please try signing in.",
+            description:
+              "There was a problem verifying your email. Please try signing in.",
             variant: "destructive",
           });
-          window.location.href = '/login';
+          window.location.href = "/login";
           return;
         }
 
-        console.log('[Auth] Email verified successfully');
+        console.log("[Auth] Email verified successfully");
 
         // After verification, try to get the session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+        console.log("[Auth] Session after verification:", {
+          session,
+          error: sessionError,
+        });
 
-        if (sessionError || !session) {
-          console.log('[Auth] No session after verification, redirecting to login');
+        if (sessionError) {
+          console.error(
+            "[Auth] Session error after verification:",
+            sessionError.message,
+          );
           toast({
-            title: "Email Verified",
-            description: "Your email has been verified. Please sign in.",
+            title: "Verification Error",
+            description:
+              "Your email was verified but we couldn't establish a session. Please sign in.",
             variant: "default",
           });
-          window.location.href = '/login';
+          window.location.href = "/login";
           return;
         }
 
-        console.log('[Auth] Session established after verification');
-        
+        if (!session) {
+          console.log(
+            "[Auth] No session after verification, trying to sign in",
+          );
+
+          // If we have the email from the URL, try to sign in
+          if (email) {
+            toast({
+              title: "Email Verified",
+              description:
+                "Your email has been verified. Please sign in with your credentials.",
+              variant: "default",
+            });
+            window.location.href = `/login?email=${encodeURIComponent(email)}`;
+            return;
+          } else {
+            toast({
+              title: "Email Verified",
+              description: "Your email has been verified. Please sign in.",
+              variant: "default",
+            });
+            window.location.href = "/login";
+            return;
+          }
+        }
+
+        console.log("[Auth] Session established after verification");
+
         // If we have a session, update it
         setUser(session.user);
-        
+
         // Fetch fresh user data
         const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
+          .from("users")
+          .select("*")
+          .eq("id", session.user.id)
           .single();
+
+        console.log("[Auth] User data after verification:", {
+          userData,
+          error: userError,
+        });
 
         if (!userError && userData) {
           setUserData(userData);
+          setIsAdmin(userData.role === "admin");
         }
 
         toast({
@@ -199,16 +280,23 @@ export default function AuthProvider({
           description: "Your account is now verified. Welcome!",
           variant: "default",
         });
-        
-        window.location.href = '/dashboard';
+
+        // Clear URL parameters before redirecting
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname,
+        );
+        window.location.href = "/dashboard";
       } catch (error) {
-        console.error('[Auth] Verification error:', error);
+        console.error("[Auth] Verification error:", error);
         toast({
           title: "Verification Error",
-          description: "There was a problem verifying your email. Please try signing in.",
+          description:
+            "There was a problem verifying your email. Please try signing in.",
           variant: "destructive",
         });
-        window.location.href = '/login';
+        window.location.href = "/login";
       }
     };
 
@@ -217,21 +305,21 @@ export default function AuthProvider({
 
   // Original auth callback handler for other auth flows
   useEffect(() => {
-    if (!window.location.pathname.includes('/auth/callback')) {
+    if (!window.location.pathname.includes("/auth/callback")) {
       return;
     }
 
     const handleAuthCallback = async () => {
       try {
         const params = new URLSearchParams(window.location.search);
-        const access_token = params.get('access_token');
-        const refresh_token = params.get('refresh_token');
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
 
         // Only handle access/refresh tokens here
         if (access_token && refresh_token) {
           setLoading(true);
           console.log("Setting session with tokens");
-          
+
           try {
             const { data, error } = await supabase.auth.setSession({
               access_token,
@@ -239,11 +327,15 @@ export default function AuthProvider({
             });
 
             if (error) throw error;
-            
+
             if (data.session?.user) {
               await refreshSession();
-              window.history.replaceState({}, document.title, window.location.pathname);
-              window.location.href = '/dashboard';
+              window.history.replaceState(
+                {},
+                document.title,
+                window.location.pathname,
+              );
+              window.location.href = "/dashboard";
             }
           } catch (error) {
             console.error("Error setting session:", error);
@@ -252,13 +344,16 @@ export default function AuthProvider({
         }
       } catch (error) {
         console.error("Auth callback handler error:", error);
-        setError(error instanceof Error ? error.message : "Authentication error");
+        setError(
+          error instanceof Error ? error.message : "Authentication error",
+        );
         toast({
           title: "Authentication Error",
-          description: error instanceof Error ? error.message : "Failed to verify email",
-          variant: "destructive"
+          description:
+            error instanceof Error ? error.message : "Failed to verify email",
+          variant: "destructive",
         });
-        window.location.href = '/login';
+        window.location.href = "/login";
       } finally {
         setLoading(false);
       }
@@ -281,9 +376,9 @@ export default function AuthProvider({
         options: {
           data: {
             full_name: fullName,
-            role: 'user'
+            role: "user",
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}`,
         },
       });
 
@@ -292,7 +387,7 @@ export default function AuthProvider({
       console.log("Signup response:", {
         userId: authData.user?.id,
         session: !!authData.session,
-        confirmationSent: !authData.session && !!authData.user
+        confirmationSent: !authData.session && !!authData.user,
       });
 
       if (authData.user) {
@@ -314,9 +409,9 @@ export default function AuthProvider({
           // Show success message with more details
           toast({
             title: "Verification Email Sent",
-            description: "Please check your email (including spam folder) to verify your account. The link will redirect you back to complete the signup.",
+            description:
+              "Please check your email (including spam folder) to verify your account. The link will redirect you back to complete the signup.",
           });
-
         } catch (error) {
           console.error("Error in user creation:", error);
           throw error;
@@ -326,10 +421,11 @@ export default function AuthProvider({
       console.error("Sign up error:", error);
       toast({
         title: "Signup Failed",
-        description: error instanceof Error ? error.message : "Failed to create account",
-        variant: "destructive"
+        description:
+          error instanceof Error ? error.message : "Failed to create account",
+        variant: "destructive",
       });
-      throw error instanceof Error ? error : new Error('Failed to sign up');
+      throw error instanceof Error ? error : new Error("Failed to sign up");
     } finally {
       setLoading(false);
     }
@@ -360,7 +456,7 @@ export default function AuthProvider({
       }
     } catch (error) {
       console.error("Sign in error:", error);
-      throw error instanceof Error ? error : new Error('Failed to sign in');
+      throw error instanceof Error ? error : new Error("Failed to sign in");
     } finally {
       setLoading(false);
     }
@@ -371,17 +467,17 @@ export default function AuthProvider({
       setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+
       setUser(null);
       setUserData(null);
       setIsAdmin(false);
       setError(null);
-      
+
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
     } catch (error) {
       console.error("Sign out error:", error);
-      throw error instanceof Error ? error : new Error('Failed to sign out');
+      throw error instanceof Error ? error : new Error("Failed to sign out");
     } finally {
       setLoading(false);
     }

@@ -17,7 +17,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Create a single instance with the appropriate auth settings and explicit headers
-export const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "", {
+// Ensure we have valid strings for URL and key, with fallbacks that will prevent runtime errors
+const validSupabaseUrl =
+  typeof supabaseUrl === "string" && supabaseUrl.trim() !== ""
+    ? supabaseUrl
+    : "https://placeholder-url.supabase.co";
+const validSupabaseAnonKey =
+  typeof supabaseAnonKey === "string" && supabaseAnonKey.trim() !== ""
+    ? supabaseAnonKey
+    : "placeholder-key";
+
+export const supabase = createClient(validSupabaseUrl, validSupabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -43,7 +53,7 @@ export function getAdminClient() {
     return supabase;
   }
 
-  return createClient(supabaseUrl || "", serviceRoleKey, {
+  return createClient(validSupabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

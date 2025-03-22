@@ -138,22 +138,24 @@ export default function AuthProvider({
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        // Log the full URL first
+        console.log("Full callback URL:", window.location.href);
+        
         const params = new URLSearchParams(window.location.search);
+        // Log all parameters
+        const allParams = {};
+        params.forEach((value, key) => {
+          allParams[key] = value;
+        });
+        console.log("All URL parameters:", allParams);
+
+        // Check for both standard tokens and email confirmation token
         const access_token = params.get('access_token');
         const refresh_token = params.get('refresh_token');
-        const token_hash = params.get('token_hash');
+        const token_hash = params.get('token_hash') || params.get('token');
         const type = params.get('type');
         const error = params.get('error');
         const error_description = params.get('error_description');
-
-        console.log("Auth callback params:", {
-          type,
-          hasAccessToken: !!access_token,
-          hasRefreshToken: !!refresh_token,
-          hasTokenHash: !!token_hash,
-          error,
-          error_description
-        });
 
         // Handle errors
         if (error) {
@@ -161,23 +163,38 @@ export default function AuthProvider({
           throw new Error(error_description || "Authentication error");
         }
 
-        // Handle email confirmation
-        if (token_hash && type === 'email_confirmation') {
+        // Log the confirmation attempt
+        console.log("Attempting confirmation with:", {
+          hasAccessToken: !!access_token,
+          hasRefreshToken: !!refresh_token,
+          hasTokenHash: !!token_hash,
+          type,
+        });
+
+        // First try to get the session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log("Current session:", !!currentSession);
+
+        // Handle email confirmation token
+        if (token_hash) {
           setLoading(true);
-          console.log("Processing email confirmation");
+          console.log("Processing confirmation token");
           
           try {
-            // Verify the email confirmation
-            const { error: verifyError } = await supabase.auth.verifyOtp({
+            // Try to verify the email
+            const { data, error: verifyError } = await supabase.auth.verifyOtp({
               token_hash,
               type: 'email_confirmation'
             });
-
-            if (verifyError) throw verifyError;
-
-            console.log("Email confirmed successfully");
             
-            // Get the current session after confirmation
+            console.log("Verification response:", { success: !verifyError, data });
+
+            if (verifyError) {
+              console.error("Verification error:", verifyError);
+              throw verifyError;
+            }
+
+            // Get the updated session
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
             if (sessionError) throw sessionError;
 
@@ -189,7 +206,7 @@ export default function AuthProvider({
               window.location.href = '/login';
             }
           } catch (error) {
-            console.error("Error confirming email:", error);
+            console.error("Error in confirmation flow:", error);
             throw error;
           }
         }
@@ -203,9 +220,8 @@ export default function AuthProvider({
               access_token,
               refresh_token,
             });
+
             if (error) throw error;
-            
-            console.log("Session set successfully:", !!data.session);
             
             if (data.session?.user) {
               await refreshSession();
@@ -216,11 +232,16 @@ export default function AuthProvider({
             console.error("Error setting session:", error);
             throw error;
           }
+        } else if (currentSession?.user) {
+          // If we have a session but no tokens, just redirect
+          window.location.href = '/dashboard';
+        } else {
+          console.log("No confirmation tokens found, redirecting to login");
+          window.location.href = '/login';
         }
       } catch (error) {
         console.error("Auth callback handler error:", error);
         setError(error instanceof Error ? error.message : "Authentication error");
-        // Redirect to login on error with a message
         toast({
           title: "Authentication Error",
           description: error instanceof Error ? error.message : "Failed to verify email",
@@ -242,7 +263,7 @@ export default function AuthProvider({
 
       console.log("Starting signup process");
 
-      // Sign up with Supabase Auth
+      // Sign up with Supabase Auth - remove the type parameter
       const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
@@ -251,7 +272,7 @@ export default function AuthProvider({
             full_name: fullName,
             role: 'user'
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback?type=email_confirmation`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 

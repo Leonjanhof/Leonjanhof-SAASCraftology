@@ -22,6 +22,7 @@ export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [isVerificationSent, setIsVerificationSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,11 +40,11 @@ export default function SignUpForm() {
       
       toast({
         title: "Account Created",
-        description: "Please check your email to verify your account.",
+        description: "Please check your email to verify your account. You can close this page.",
         variant: "default",
       });
       
-      navigate("/login");
+      setIsVerificationSent(true);
     } catch (error: any) {
       console.error("Signup error:", error);
       setError(error.message);
@@ -57,6 +58,29 @@ export default function SignUpForm() {
       setIsLoading(false);
     }
   };
+
+  if (isVerificationSent) {
+    return (
+      <AuthLayout>
+        <Card className="w-full">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
+              <UserPlus className="h-5 w-5" /> Check Your Email
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-center">
+            <p>We've sent a verification link to <strong>{email}</strong></p>
+            <p className="text-sm text-gray-500">
+              Please check your email (including spam folder) and click the verification link.
+            </p>
+            <p className="text-sm text-gray-500">
+              You can close this page - we'll redirect you after verification.
+            </p>
+          </CardContent>
+        </Card>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>

@@ -134,92 +134,118 @@ export default function AuthProvider({
     return () => subscription.unsubscribe();
   }, []);
 
-  // Handle email confirmation and auth callbacks
+  // Check if we have a verification token in the URL
   useEffect(() => {
-    // Only run this if we're on the callback route
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token') || params.get('token_hash') || params.get('confirmation_token');
+    const type = params.get('type');
+    const error = params.get('error');
+    const error_description = params.get('error_description');
+
+    // If we have a token, we need to handle verification
+    if (token) {
+      console.log("Found verification token:", { token, type, currentPath: window.location.pathname });
+      
+      const handleVerification = async () => {
+        try {
+          setLoading(true);
+          
+          // Try to verify the token
+          const { data, error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: type || 'email_confirmation'
+          });
+          
+          console.log("Verification attempt result:", { success: !verifyError, data });
+
+          if (verifyError) {
+            console.error("Verification error:", verifyError);
+            toast({
+              title: "Verification Failed",
+              description: verifyError.message,
+              variant: "destructive"
+            });
+            return;
+          }
+
+          // Try to get the session multiple times
+          let session = null;
+          let attempts = 0;
+          while (!session && attempts < 3) {
+            const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError) {
+              console.error("Session error:", sessionError);
+              // Don't throw, just continue trying
+            }
+            if (currentSession?.user) {
+              session = currentSession;
+              break;
+            }
+            attempts++;
+            // Wait a bit between attempts
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+
+          console.log("Session after verification attempts:", {
+            attempts,
+            hasSession: !!session,
+            user: session?.user ? {
+              id: session.user.id,
+              email: session.user.email,
+              emailConfirmed: session.user.email_confirmed_at
+            } : null
+          });
+
+          if (session?.user) {
+            // We got a session, refresh and redirect to dashboard
+            await refreshSession();
+            toast({
+              title: "Email Verified",
+              description: "Your email has been verified successfully. Redirecting to dashboard...",
+            });
+            window.history.replaceState({}, document.title, window.location.pathname);
+            window.location.href = '/dashboard';
+          } else {
+            // No session, but verification might have worked
+            toast({
+              title: "Email Verified",
+              description: "Your email has been verified. Please log in to continue.",
+            });
+            window.history.replaceState({}, document.title, window.location.pathname);
+            window.location.href = '/login';
+          }
+        } catch (error) {
+          console.error("Verification error:", error);
+          toast({
+            title: "Verification Failed",
+            description: error instanceof Error ? error.message : "Failed to verify email",
+            variant: "destructive"
+          });
+          // On error, redirect to login
+          window.location.href = '/login';
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      handleVerification();
+    }
+  }, []);
+
+  // Original auth callback handler for other auth flows
+  useEffect(() => {
     if (!window.location.pathname.includes('/auth/callback')) {
       return;
     }
 
     const handleAuthCallback = async () => {
       try {
-        // Log the full URL first
-        console.log("Full callback URL:", window.location.href);
-        
         const params = new URLSearchParams(window.location.search);
-        // Log all parameters
-        const allParams = {};
-        params.forEach((value, key) => {
-          allParams[key] = value;
-        });
-        console.log("All URL parameters:", allParams);
-
-        // Check for both standard tokens and email confirmation token
         const access_token = params.get('access_token');
         const refresh_token = params.get('refresh_token');
-        const token_hash = params.get('token_hash') || params.get('token');
-        const type = params.get('type');
-        const error = params.get('error');
-        const error_description = params.get('error_description');
 
-        // If no auth parameters, redirect to home
-        if (!access_token && !refresh_token && !token_hash) {
-          console.log("No auth parameters found, redirecting to home");
-          window.location.href = '/';
-          return;
-        }
-
-        // Handle errors
-        if (error) {
-          console.error("Auth callback error:", error, error_description);
-          throw new Error(error_description || "Authentication error");
-        }
-
-        // Log the confirmation attempt
-        console.log("Attempting confirmation with:", {
-          hasAccessToken: !!access_token,
-          hasRefreshToken: !!refresh_token,
-          hasTokenHash: !!token_hash,
-          type,
-        });
-
-        // Handle email confirmation token
-        if (token_hash) {
-          setLoading(true);
-          console.log("Processing confirmation token");
-          
-          try {
-            // Try to verify the email
-            const { data, error: verifyError } = await supabase.auth.verifyOtp({
-              token_hash,
-              type: 'email_confirmation'
-            });
-            
-            console.log("Verification response:", { success: !verifyError, data });
-
-            if (verifyError) {
-              console.error("Verification error:", verifyError);
-              throw verifyError;
-            }
-
-            // Get the updated session
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-            if (sessionError) throw sessionError;
-
-            if (session?.user) {
-              await refreshSession();
-              window.history.replaceState({}, document.title, window.location.pathname);
-              window.location.href = '/dashboard';
-            } else {
-              window.location.href = '/login';
-            }
-          } catch (error) {
-            console.error("Error in confirmation flow:", error);
-            throw error;
-          }
-        }
-        // Handle access tokens
-        else if (access_token && refresh_token) {
+        // Only handle access/refresh tokens here
+        if (access_token && refresh_token) {
           setLoading(true);
           console.log("Setting session with tokens");
           

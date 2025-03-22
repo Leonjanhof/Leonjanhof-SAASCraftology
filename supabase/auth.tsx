@@ -141,6 +141,7 @@ export default function AuthProvider({
         const params = new URLSearchParams(window.location.search);
         const access_token = params.get('access_token');
         const refresh_token = params.get('refresh_token');
+        const token_hash = params.get('token_hash');
         const type = params.get('type');
         const error = params.get('error');
         const error_description = params.get('error_description');
@@ -149,6 +150,7 @@ export default function AuthProvider({
           type,
           hasAccessToken: !!access_token,
           hasRefreshToken: !!refresh_token,
+          hasTokenHash: !!token_hash,
           error,
           error_description
         });
@@ -159,8 +161,40 @@ export default function AuthProvider({
           throw new Error(error_description || "Authentication error");
         }
 
-        // Handle successful auth
-        if (access_token && refresh_token) {
+        // Handle email confirmation
+        if (token_hash && type === 'email_confirmation') {
+          setLoading(true);
+          console.log("Processing email confirmation");
+          
+          try {
+            // Verify the email confirmation
+            const { error: verifyError } = await supabase.auth.verifyOtp({
+              token_hash,
+              type: 'email_confirmation'
+            });
+
+            if (verifyError) throw verifyError;
+
+            console.log("Email confirmed successfully");
+            
+            // Get the current session after confirmation
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError) throw sessionError;
+
+            if (session?.user) {
+              await refreshSession();
+              window.history.replaceState({}, document.title, window.location.pathname);
+              window.location.href = '/dashboard';
+            } else {
+              window.location.href = '/login';
+            }
+          } catch (error) {
+            console.error("Error confirming email:", error);
+            throw error;
+          }
+        }
+        // Handle access tokens
+        else if (access_token && refresh_token) {
           setLoading(true);
           console.log("Setting session with tokens");
           
@@ -182,40 +216,16 @@ export default function AuthProvider({
             console.error("Error setting session:", error);
             throw error;
           }
-        } else if (type === 'email_confirmation') {
-          setLoading(true);
-          console.log("Handling email confirmation");
-          
-          try {
-            // Get the current session
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-            if (sessionError) throw sessionError;
-
-            console.log("Got session after confirmation:", !!session);
-
-            if (session?.user) {
-              // Force refresh the session to update email confirmation status
-              const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
-              if (refreshError) throw refreshError;
-
-              console.log("Session refreshed:", !!newSession);
-
-              await refreshSession();
-              window.history.replaceState({}, document.title, window.location.pathname);
-              window.location.href = '/dashboard';
-            } else {
-              // If no session, redirect to login
-              window.location.href = '/login';
-            }
-          } catch (error) {
-            console.error("Error in email confirmation:", error);
-            throw error;
-          }
         }
       } catch (error) {
         console.error("Auth callback handler error:", error);
         setError(error instanceof Error ? error.message : "Authentication error");
-        // Redirect to login on error
+        // Redirect to login on error with a message
+        toast({
+          title: "Authentication Error",
+          description: error instanceof Error ? error.message : "Failed to verify email",
+          variant: "destructive"
+        });
         window.location.href = '/login';
       } finally {
         setLoading(false);
@@ -230,6 +240,8 @@ export default function AuthProvider({
       setLoading(true);
       setError(null);
 
+      console.log("Starting signup process");
+
       // Sign up with Supabase Auth
       const { data: authData, error } = await supabase.auth.signUp({
         email,
@@ -239,11 +251,17 @@ export default function AuthProvider({
             full_name: fullName,
             role: 'user'
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?type=email_confirmation`,
         },
       });
 
       if (error) throw error;
+
+      console.log("Signup response:", {
+        userId: authData.user?.id,
+        session: !!authData.session,
+        confirmationSent: !authData.session && !!authData.user
+      });
 
       if (authData.user) {
         try {
@@ -260,18 +278,25 @@ export default function AuthProvider({
           if (insertError) {
             console.error("Error creating user record:", insertError);
           }
+
+          // Show success message with more details
+          toast({
+            title: "Verification Email Sent",
+            description: "Please check your email (including spam folder) to verify your account. The link will redirect you back to complete the signup.",
+          });
+
         } catch (error) {
           console.error("Error in user creation:", error);
+          throw error;
         }
       }
-
-      toast({
-        title: "Verification Email Sent",
-        description: "Please check your email to verify your account. Check your spam folder if you don't see it.",
-      });
-
     } catch (error) {
       console.error("Sign up error:", error);
+      toast({
+        title: "Signup Failed",
+        description: error instanceof Error ? error.message : "Failed to create account",
+        variant: "destructive"
+      });
       throw error instanceof Error ? error : new Error('Failed to sign up');
     } finally {
       setLoading(false);

@@ -136,6 +136,11 @@ export default function AuthProvider({
 
   // Handle email confirmation and auth callbacks
   useEffect(() => {
+    // Only run this if we're on the callback route
+    if (!window.location.pathname.includes('/auth/callback')) {
+      return;
+    }
+
     const handleAuthCallback = async () => {
       try {
         // Log the full URL first
@@ -157,6 +162,13 @@ export default function AuthProvider({
         const error = params.get('error');
         const error_description = params.get('error_description');
 
+        // If no auth parameters, redirect to home
+        if (!access_token && !refresh_token && !token_hash) {
+          console.log("No auth parameters found, redirecting to home");
+          window.location.href = '/';
+          return;
+        }
+
         // Handle errors
         if (error) {
           console.error("Auth callback error:", error, error_description);
@@ -170,10 +182,6 @@ export default function AuthProvider({
           hasTokenHash: !!token_hash,
           type,
         });
-
-        // First try to get the session
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        console.log("Current session:", !!currentSession);
 
         // Handle email confirmation token
         if (token_hash) {
@@ -232,12 +240,6 @@ export default function AuthProvider({
             console.error("Error setting session:", error);
             throw error;
           }
-        } else if (currentSession?.user) {
-          // If we have a session but no tokens, just redirect
-          window.location.href = '/dashboard';
-        } else {
-          console.log("No confirmation tokens found, redirecting to login");
-          window.location.href = '/login';
         }
       } catch (error) {
         console.error("Auth callback handler error:", error);

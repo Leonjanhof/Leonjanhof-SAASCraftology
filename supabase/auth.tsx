@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { toast } from "@/components/ui/use-toast";
-import { useRouter } from "next/router";
 
 type UserRole = "admin" | "user";
 
@@ -39,7 +38,6 @@ export default function AuthProvider({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const router = useRouter();
 
   // Function to fetch user data from the database
   const fetchUserData = async (userId: string): Promise<UserData | null> => {
@@ -160,7 +158,7 @@ export default function AuthProvider({
             description: "There was a problem verifying your email. Please try signing in.",
             variant: "destructive",
           });
-          router.push('/login');
+          window.location.href = '/login';
           return;
         }
 
@@ -172,11 +170,11 @@ export default function AuthProvider({
         if (sessionError || !session) {
           console.log('[Auth] No session after verification, redirecting to login');
           toast({
-            title: "Email verified",
+            title: "Email Verified",
             description: "Your email has been verified. Please sign in.",
             variant: "default",
           });
-          router.push('/login');
+          window.location.href = '/login';
           return;
         }
 
@@ -197,12 +195,12 @@ export default function AuthProvider({
         }
 
         toast({
-          title: "Email verified",
+          title: "Email Verified",
           description: "Your account is now verified. Welcome!",
           variant: "default",
         });
         
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       } catch (error) {
         console.error('[Auth] Verification error:', error);
         toast({
@@ -210,12 +208,12 @@ export default function AuthProvider({
           description: "There was a problem verifying your email. Please try signing in.",
           variant: "destructive",
         });
-        router.push('/login');
+        window.location.href = '/login';
       }
     };
 
     handleVerification();
-  }, [router]);
+  }, []);
 
   // Original auth callback handler for other auth flows
   useEffect(() => {
@@ -315,7 +313,7 @@ export default function AuthProvider({
 
           // Show success message with more details
           toast({
-            title: "Verification email sent",
+            title: "Verification Email Sent",
             description: "Please check your email (including spam folder) to verify your account. The link will redirect you back to complete the signup.",
           });
 
@@ -394,7 +392,7 @@ export default function AuthProvider({
       <div className="min-h-screen flex items-center justify-center bg-red-50 p-4">
         <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
           <h2 className="text-2xl font-bold text-red-600 mb-4">
-            Connection error
+            Connection Error
           </h2>
           <p className="text-gray-700 mb-4">{error}</p>
           <button

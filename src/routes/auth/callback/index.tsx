@@ -46,7 +46,8 @@ export default function AuthCallback() {
                   id: user.id,
                   email: user.email,
                   full_name: discordData.full_name || discordData.name || discordData.username,
-                  token_identifier: user.id, // Match the normal signup flow
+                  avatar_url: discordData.avatar_url, // Discord avatar
+                  token_identifier: user.id,
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString(),
                 });

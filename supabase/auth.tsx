@@ -172,7 +172,7 @@ export default function AuthProvider({
         if (sessionError || !session) {
           console.log('[Auth] No session after verification, redirecting to login');
           toast({
-            title: "Email Verified",
+            title: "Email verified",
             description: "Your email has been verified. Please sign in.",
             variant: "default",
           });
@@ -197,7 +197,7 @@ export default function AuthProvider({
         }
 
         toast({
-          title: "Email Verified",
+          title: "Email verified",
           description: "Your account is now verified. Welcome!",
           variant: "default",
         });
@@ -315,7 +315,7 @@ export default function AuthProvider({
 
           // Show success message with more details
           toast({
-            title: "Verification Email Sent",
+            title: "Verification email sent",
             description: "Please check your email (including spam folder) to verify your account. The link will redirect you back to complete the signup.",
           });
 
@@ -394,7 +394,7 @@ export default function AuthProvider({
       <div className="min-h-screen flex items-center justify-center bg-red-50 p-4">
         <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
           <h2 className="text-2xl font-bold text-red-600 mb-4">
-            Connection Error
+            Connection error
           </h2>
           <p className="text-gray-700 mb-4">{error}</p>
           <button

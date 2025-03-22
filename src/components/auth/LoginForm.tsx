@@ -96,25 +96,16 @@ export default function LoginForm() {
     try {
       setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'discord',
-        options: {
-          redirectTo: 'https://craftology.app/auth/callback',
-          scopes: 'identify email'
-        }
+        provider: 'discord'
       });
 
       if (error) {
         throw error;
       }
 
-      // Check if we got the OAuth URL back and redirect to it
       if (data?.url) {
-        // Redirect to the Discord OAuth URL
         window.location.href = data.url;
-      } else {
-        throw new Error('No OAuth URL returned from Supabase');
       }
-      
     } catch (error: any) {
       console.error("Discord login error:", error);
       toast({

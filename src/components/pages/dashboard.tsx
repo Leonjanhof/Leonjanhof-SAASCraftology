@@ -34,35 +34,95 @@ const Dashboard = () => {
   const realtimeSubscriptionRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
-    fetchLicenses();
-    fetchSubscriptions();
+    console.log("Dashboard component mounted, user state:", !!user);
+
+    // Add a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.log("Dashboard loading timeout reached, forcing state update");
+        setLoading(false);
+        toast({
+          title: "Loading timeout",
+          description:
+            "Dashboard data took too long to load. Some data might be missing.",
+          variant: "destructive",
+        });
+      }
+    }, 10000); // 10 second timeout
+
+    const initDashboard = async () => {
+      try {
+        // Verify user session is valid before proceeding
+        if (!user) {
+          console.log(
+            "No user found in session, aborting dashboard initialization",
+          );
+          setLoading(false);
+          return;
+        }
+
+        console.log("Initializing dashboard data for user:", user.id);
+        await fetchLicenses();
+        await fetchSubscriptions();
+        console.log("Dashboard data initialized successfully");
+      } catch (error) {
+        console.error("Error initializing dashboard:", error);
+        setLoading(false);
+        toast({
+          title: "Error",
+          description:
+            "Failed to load dashboard data. Please try refreshing the page.",
+          variant: "destructive",
+        });
+      } finally {
+        // Ensure loading state is always updated
+        setLoading(false);
+      }
+    };
+
+    // Only initialize if we have a user
+    if (user) {
+      initDashboard();
+    } else {
+      console.log("No user in session, skipping dashboard initialization");
+      setLoading(false);
+    }
 
     // Set up realtime subscription for licenses and subscriptions
     if (user) {
-      realtimeSubscriptionRef.current = supabase
-        .channel("dashboard-changes")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "licenses" },
-          () => {
-            console.log("Licenses table changed, fetching updated data");
-            fetchLicenses();
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "subscriptions" },
-          () => {
-            console.log("Subscriptions table changed, fetching updated data");
-            fetchSubscriptions();
-          },
-        )
-        .subscribe();
+      console.log("Setting up realtime subscriptions for user", user.id);
+      try {
+        realtimeSubscriptionRef.current = supabase
+          .channel("dashboard-changes")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "licenses" },
+            () => {
+              console.log("Licenses table changed, fetching updated data");
+              fetchLicenses();
+            },
+          )
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "subscriptions" },
+            () => {
+              console.log("Subscriptions table changed, fetching updated data");
+              fetchSubscriptions();
+            },
+          )
+          .subscribe((status) => {
+            console.log("Realtime subscription status:", status);
+          });
+      } catch (error) {
+        console.error("Error setting up realtime subscription:", error);
+      }
     }
 
     // Cleanup subscription when component unmounts
     return () => {
+      clearTimeout(loadingTimeout);
       if (realtimeSubscriptionRef.current) {
+        console.log("Cleaning up realtime subscription");
         realtimeSubscriptionRef.current.unsubscribe();
       }
     };
@@ -70,8 +130,16 @@ const Dashboard = () => {
 
   const fetchLicenses = async () => {
     try {
+      if (!user) {
+        console.log("No user found, skipping license fetch");
+        return [];
+      }
+
+      console.log("Fetching user licenses for user ID:", user.id);
       const userLicenses = await getUserLicenses();
+      console.log("Licenses fetched successfully:", userLicenses.length);
       setLicenses(userLicenses);
+      return userLicenses;
     } catch (error) {
       console.error("Error fetching licenses:", error);
       toast({
@@ -79,17 +147,22 @@ const Dashboard = () => {
         description: "Failed to load your licenses. Please try again later.",
         variant: "destructive",
       });
+      // Return empty array to prevent undefined errors
+      return [];
     } finally {
-      setLoading(false);
+      // Don't set loading to false here, let the main useEffect handle it
+      // This prevents race conditions if multiple fetches are happening
     }
   };
 
   const fetchSubscriptions = async () => {
     if (!user) {
+      console.log("No user found, skipping subscription fetch");
       setIsLoadingSubscriptions(false);
-      return;
+      return {};
     }
 
+    console.log("Fetching subscriptions for user", user.id);
     setIsLoadingSubscriptions(true);
     try {
       const { data, error } = await supabase
@@ -99,13 +172,16 @@ const Dashboard = () => {
         )
         .eq("user_id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error fetching subscriptions:", error);
+        throw error;
+      }
 
       // Create a map of product name to subscription
       const subscriptionMap: Record<string, Subscription> = {};
 
       if (data && data.length > 0) {
-        console.log("Subscriptions found:", data);
+        console.log("Subscriptions found:", data.length);
 
         // First, try to map subscriptions using metadata.product_name
         data.forEach((sub) => {
@@ -113,7 +189,7 @@ const Dashboard = () => {
           const productName = sub.metadata?.product_name;
 
           // Debug log to see what's in the metadata
-          console.log("Subscription metadata:", sub.metadata);
+          console.log("Subscription metadata for", sub.id, ":", sub.metadata);
 
           if (productName) {
             console.log(`Mapping subscription to product: ${productName}`);
@@ -138,10 +214,22 @@ const Dashboard = () => {
         console.log("No subscriptions found for user");
       }
 
-      console.log("Final subscription map:", subscriptionMap);
+      console.log(
+        "Final subscription map:",
+        Object.keys(subscriptionMap).length,
+        "subscriptions mapped",
+      );
       setSubscriptions(subscriptionMap);
+      return subscriptionMap;
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
+      toast({
+        title: "Warning",
+        description:
+          "Could not load subscription information. Some features may be limited.",
+        variant: "destructive",
+      });
+      return {};
     } finally {
       setIsLoadingSubscriptions(false);
     }
@@ -151,13 +239,74 @@ const Dashboard = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");
   };
 
+  // Add a timeout to prevent infinite loading
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.log("Loading timeout reached in render phase");
+        setLoadingTimeout(true);
+      }
+    }, 15000); // 15 seconds timeout
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <GearsBackground />
-        <div className="flex items-center space-x-2 bg-white/80 px-6 py-3 rounded-lg shadow-sm z-10">
-          <Loader2 className="h-6 w-6 animate-spin text-green-400" />
-          <span>Loading your licenses...</span>
+        <div className="flex flex-col items-center bg-white/80 px-6 py-4 rounded-lg shadow-sm z-10">
+          <div className="flex items-center space-x-2 mb-2">
+            <Loader2 className="h-6 w-6 animate-spin text-green-400" />
+            <span>Loading your licenses...</span>
+          </div>
+          {loadingTimeout && (
+            <div className="text-sm text-amber-600 mt-2">
+              <p>This is taking longer than expected.</p>
+              <div className="flex flex-col space-y-2 mt-2 w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh Page
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={async () => {
+                    try {
+                      // Try to refresh the session
+                      const { refreshSession } = useAuth();
+                      await refreshSession();
+                      toast({
+                        title: "Session refreshed",
+                        description: "Attempting to reload your data...",
+                      });
+                      // Reload the page after session refresh
+                      window.location.reload();
+                    } catch (error) {
+                      console.error("Error refreshing session:", error);
+                      toast({
+                        title: "Session Error",
+                        description:
+                          "Could not refresh your session. Please try signing in again.",
+                        variant: "destructive",
+                      });
+                      // Redirect to login
+                      window.location.href = "/login";
+                    }
+                  }}
+                >
+                  Refresh Session
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

@@ -22,10 +22,17 @@ export async function getUserLicenses(): Promise<License[]> {
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (userError) {
       console.error("Error getting current user:", userError);
       return [];
     }
+
+    if (!user) {
+      console.error("No authenticated user found");
+      return [];
+    }
+
+    console.log("Fetching licenses for user ID:", user.id);
 
     // Fetch licenses for the current user only
     const { data, error } = await supabase
@@ -36,10 +43,14 @@ export async function getUserLicenses(): Promise<License[]> {
 
     if (error) {
       console.error("Error fetching licenses:", error);
-      throw error;
+      return []; // Return empty array instead of throwing
     }
 
-    console.log("Licenses fetched successfully:", data);
+    console.log(
+      "Licenses fetched successfully:",
+      data?.length || 0,
+      "licenses found",
+    );
     return data || [];
   } catch (e) {
     console.error("Exception in getUserLicenses:", e);

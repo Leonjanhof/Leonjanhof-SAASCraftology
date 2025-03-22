@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { toast } from "@/components/ui/use-toast";
+import { useRouter } from "next/router";
 
 type UserRole = "admin" | "user";
 
@@ -38,6 +39,7 @@ export default function AuthProvider({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
 
   // Function to fetch user data from the database
   const fetchUserData = async (userId: string): Promise<UserData | null> => {
@@ -136,84 +138,84 @@ export default function AuthProvider({
 
   // Check if we have a verification token in the URL
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token') || params.get('token_hash') || params.get('confirmation_token');
-    const type = params.get('type');
-
-    // If we have a token, we need to handle verification
-    if (token) {
-      console.log("[Auth] Found verification token:", { token, type, currentPath: window.location.pathname });
+    const handleVerification = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token_hash') || params.get('verification_token');
       
-      const handleVerification = async () => {
-        try {
-          setLoading(true);
-          
-          // First verify the token
-          console.log("[Auth] Attempting to verify token...");
-          const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-            token_hash: token,
-            type: 'email_confirmation'
-          });
-          
-          if (verifyError) {
-            console.error("[Auth] Verification error:", verifyError);
-            toast({
-              title: "Verification Failed",
-              description: verifyError.message,
-              variant: "destructive"
-            });
-            window.location.href = '/login';
-            return;
-          }
+      if (!token) return;
 
-          console.log("[Auth] Token verified successfully");
+      console.log('[Auth] Found verification token, attempting verification...');
+      
+      try {
+        // First verify the token
+        const { error: verificationError } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: 'email'
+        });
 
-          // Then try to sign in with the verified email/password
-          console.log("[Auth] Checking for session...");
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-          if (sessionError) {
-            console.error("[Auth] Session error:", sessionError);
-            toast({
-              title: "Verification Successful",
-              description: "Your email is verified. Please sign in to continue.",
-            });
-            window.location.href = '/login';
-            return;
-          }
-
-          if (session?.user) {
-            console.log("[Auth] Session found, refreshing...");
-            await refreshSession();
-            toast({
-              title: "Welcome!",
-              description: "Your email is verified and you're now signed in.",
-            });
-            window.location.href = '/dashboard';
-          } else {
-            console.log("[Auth] No session found after verification");
-            toast({
-              title: "Verification Successful",
-              description: "Your email is verified. Please sign in to continue.",
-            });
-            window.location.href = '/login';
-          }
-        } catch (error) {
-          console.error("[Auth] Verification process error:", error);
+        if (verificationError) {
+          console.error('[Auth] Verification failed:', verificationError.message);
           toast({
             title: "Verification Failed",
-            description: error instanceof Error ? error.message : "Failed to verify email",
-            variant: "destructive"
+            description: "There was a problem verifying your email. Please try signing in.",
+            variant: "destructive",
           });
-          window.location.href = '/login';
-        } finally {
-          setLoading(false);
+          router.push('/login');
+          return;
         }
-      };
 
-      handleVerification();
-    }
-  }, []);
+        console.log('[Auth] Email verified successfully');
+
+        // After verification, try to get the session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError || !session) {
+          console.log('[Auth] No session after verification, redirecting to login');
+          toast({
+            title: "Email Verified",
+            description: "Your email has been verified. Please sign in.",
+            variant: "default",
+          });
+          router.push('/login');
+          return;
+        }
+
+        console.log('[Auth] Session established after verification');
+        
+        // If we have a session, update it
+        setUser(session.user);
+        
+        // Fetch fresh user data
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!userError && userData) {
+          setUserData(userData);
+        }
+
+        toast({
+          title: "Email Verified",
+          description: "Your account is now verified. Welcome!",
+          variant: "default",
+        });
+        
+        router.push('/dashboard');
+      } catch (error) {
+        console.error('[Auth] Verification error:', error);
+        toast({
+          title: "Verification Error",
+          description: "There was a problem verifying your email. Please try signing in.",
+          variant: "destructive",
+        });
+        router.push('/login');
+      }
+    };
+
+    handleVerification();
+  }, [router]);
 
   // Original auth callback handler for other auth flows
   useEffect(() => {

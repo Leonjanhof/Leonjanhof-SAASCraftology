@@ -170,24 +170,7 @@ export default function AuthProvider({
             }
 
             if (session?.user) {
-              // Ensure user role exists
-              const { error: roleError } = await supabase
-                .from("user_roles")
-                .upsert(
-                  {
-                    user_id: session.user.id,
-                    role_name: "user",
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                  },
-                  { onConflict: "user_id" }
-                );
-
-              if (roleError) {
-                console.error("Error ensuring user role:", roleError);
-              }
-
-              // Refresh user data
+              // Refresh user data - role will be handled by trigger
               await refreshSession();
 
               // Clear URL parameters
@@ -234,7 +217,7 @@ export default function AuthProvider({
 
       if (authData.user) {
         try {
-          // Create user record
+          // Create user record only - role will be created by trigger
           const { error: insertError } = await supabase.from("users").insert({
             id: authData.user.id,
             email: email,
@@ -246,31 +229,6 @@ export default function AuthProvider({
 
           if (insertError) {
             console.error("Error creating user record:", insertError);
-          }
-
-          // Create user role
-          const { error: roleError } = await supabase.from("user_roles").insert({
-            user_id: authData.user.id,
-            role_name: "user",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-
-          if (roleError) {
-            console.error("Error creating user role:", roleError);
-            // Try upsert as fallback
-            const { error: upsertError } = await supabase.from("user_roles").upsert(
-              {
-                user_id: authData.user.id,
-                role_name: "user",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: "user_id" }
-            );
-            if (upsertError) {
-              console.error("Error upserting user role:", upsertError);
-            }
           }
         } catch (error) {
           console.error("Error in user creation:", error);

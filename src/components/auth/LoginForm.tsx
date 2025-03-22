@@ -95,18 +95,11 @@ export default function LoginForm() {
   const handleDiscordSignIn = async () => {
     try {
       setIsLoading(true);
-      // Get the next parameter from the URL if it exists
-      const params = new URLSearchParams(window.location.search);
-      const next = params.get('next') || '/dashboard';
-
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-          scopes: 'identify email',
-          queryParams: {
-            prompt: 'consent'
-          }
+          redirectTo: 'https://craftology.app/auth/callback',
+          scopes: 'identify email'
         }
       });
 

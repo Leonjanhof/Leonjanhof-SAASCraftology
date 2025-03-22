@@ -313,7 +313,7 @@ export default function AuthProvider({
 
           // Show success message with more details
           toast({
-            title: "Verification Email Sent",
+            title: "Verification email sent",
             description: "Please check your email (including spam folder) to verify your account. The link will redirect you back to complete the signup.",
           });
 

@@ -92,15 +92,45 @@ export default function AuthProvider({
       if (sessionError) throw sessionError;
 
       if (session?.user) {
+        // Check if user still exists in the database
+        const { data: userExists, error: userCheckError } = await supabase
+          .from("users")
+          .select("id")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        if (userCheckError) {
+          console.error("Error checking if user exists:", userCheckError);
+        }
+
+        if (!userExists) {
+          console.log("User no longer exists in database, signing out");
+          await signOut();
+          return;
+        }
+
         setUser(session.user);
         const data = await fetchUserData(session.user.id);
         if (data) {
           setUserData(data);
           setIsAdmin(data.role === "admin");
+        } else {
+          // If we can't fetch user data, the user might have been deleted
+          console.log("Could not fetch user data, signing out");
+          await signOut();
         }
+      } else {
+        // Clear user state if no session exists
+        setUser(null);
+        setUserData(null);
+        setIsAdmin(false);
       }
     } catch (error) {
       console.error("Error refreshing session:", error);
+      // Clear user state on error
+      setUser(null);
+      setUserData(null);
+      setIsAdmin(false);
     }
   };
 
@@ -109,10 +139,41 @@ export default function AuthProvider({
     async function initAuth() {
       try {
         setLoading(true);
+        // Check for session and validate user exists
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          console.log("Session found during initialization, validating user");
+          // Check if user still exists in the database
+          const { data: userExists, error: userCheckError } = await supabase
+            .from("users")
+            .select("id")
+            .eq("id", session.user.id)
+            .maybeSingle();
+
+          if (userCheckError) {
+            console.error("Error checking if user exists:", userCheckError);
+          }
+
+          if (!userExists) {
+            console.log(
+              "User no longer exists in database, signing out during init",
+            );
+            await signOut();
+            return;
+          }
+        }
+
         await refreshSession();
         setError(null);
       } catch (e) {
         console.error("Auth initialization error:", e);
+        // On error, clear user state and redirect to home
+        setUser(null);
+        setUserData(null);
+        setIsAdmin(false);
       } finally {
         setLoading(false);
       }
@@ -127,11 +188,32 @@ export default function AuthProvider({
       console.log("Auth state changed:", event);
 
       if (session?.user) {
+        // Check if user still exists in the database
+        const { data: userExists, error: userCheckError } = await supabase
+          .from("users")
+          .select("id")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        if (userCheckError) {
+          console.error("Error checking if user exists:", userCheckError);
+        }
+
+        if (!userExists) {
+          console.log("User no longer exists in database, signing out");
+          await signOut();
+          return;
+        }
+
         setUser(session.user);
         const data = await fetchUserData(session.user.id);
         if (data) {
           setUserData(data);
           setIsAdmin(data.role === "admin");
+        } else {
+          // If we can't fetch user data, the user might have been deleted
+          console.log("Could not fetch user data, signing out");
+          await signOut();
         }
       } else {
         setUser(null);
@@ -465,9 +547,11 @@ export default function AuthProvider({
   const signOut = async () => {
     try {
       setLoading(true);
+      console.log("Signing out...");
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
+      // Force clear user state
       setUser(null);
       setUserData(null);
       setIsAdmin(false);
@@ -475,9 +559,17 @@ export default function AuthProvider({
 
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
+
+      // Force redirect to home page
+      console.log("Sign out successful, redirecting to home");
+      window.location.href = "/";
     } catch (error) {
       console.error("Sign out error:", error);
-      throw error instanceof Error ? error : new Error("Failed to sign out");
+      // Still clear state and redirect even if there's an error
+      setUser(null);
+      setUserData(null);
+      setIsAdmin(false);
+      window.location.href = "/";
     } finally {
       setLoading(false);
     }

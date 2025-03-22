@@ -627,43 +627,27 @@ export default function AuthProvider({
     try {
       setLoading(true);
       setError(null);
-      console.log("Auth: Starting sign in with password...");
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.error("Auth: Sign in error from Supabase:", error);
-        throw error;
-      }
-
-      console.log("Auth: Sign in response received, user:", !!data.user);
+      if (error) throw error;
 
       if (data.user) {
         if (!data.user.email_confirmed_at) {
-          console.error("Auth: Email not confirmed");
           throw new Error("Email not confirmed");
         }
 
-        console.log("Auth: Fetching user data for ID:", data.user.id);
         const userData = await fetchUserData(data.user.id);
         if (userData) {
-          console.log(
-            "Auth: User data fetched successfully, role:",
-            userData.role,
-          );
           setUserData(userData);
           setIsAdmin(userData.role === "admin");
-        } else {
-          console.error("Auth: Failed to fetch user data after sign in");
         }
       }
-
-      console.log("Auth: Sign in process completed successfully");
     } catch (error) {
-      console.error("Auth: Sign in error:", error);
+      console.error("Sign in error:", error);
       throw error instanceof Error ? error : new Error("Failed to sign in");
     } finally {
       setLoading(false);

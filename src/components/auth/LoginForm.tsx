@@ -76,7 +76,7 @@ export default function LoginForm() {
       // Handle specific error cases
       if (error.message === "Email not confirmed") {
         toast({
-          title: "Email Not Confirmed",
+          title: "Email not confirmed",
           description: "Please check your email and confirm your account before signing in.",
           variant: "destructive",
         });
@@ -137,7 +137,7 @@ export default function LoginForm() {
       if (error) throw error;
 
       toast({
-        title: "Confirmation Email Sent",
+        title: "Confirmation email sent",
         description: "Please check your inbox for the confirmation email.",
         variant: "default",
       });
@@ -185,7 +185,6 @@ export default function LoginForm() {
                   fill="currentColor"
                 />
               </svg>
-              Continue with Discord
             </Button>
 
             <div className="relative">

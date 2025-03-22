@@ -142,22 +142,21 @@ export default function AuthProvider({
 
     // If we have a token, we need to handle verification
     if (token) {
-      console.log("Found verification token:", { token, type, currentPath: window.location.pathname });
+      console.log("[Auth] Found verification token:", { token, type, currentPath: window.location.pathname });
       
       const handleVerification = async () => {
         try {
           setLoading(true);
           
-          // Try to verify the token
-          const { data, error: verifyError } = await supabase.auth.verifyOtp({
+          // First verify the token
+          console.log("[Auth] Attempting to verify token...");
+          const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
             token_hash: token,
-            type: 'email_confirmation' // Always use email_confirmation for this flow
+            type: 'email_confirmation'
           });
           
-          console.log("Verification attempt result:", { success: !verifyError, data });
-
           if (verifyError) {
-            console.error("Verification error:", verifyError);
+            console.error("[Auth] Verification error:", verifyError);
             toast({
               title: "Verification Failed",
               description: verifyError.message,
@@ -167,36 +166,40 @@ export default function AuthProvider({
             return;
           }
 
-          // After successful verification, try to sign in
-          const { data: { session }, error: signInError } = await supabase.auth.getSession();
-          
-          console.log("Session after verification:", { 
-            hasSession: !!session,
-            user: session?.user ? {
-              id: session.user.id,
-              email: session.user.email,
-              emailConfirmed: session.user.email_confirmed_at
-            } : null
-          });
+          console.log("[Auth] Token verified successfully");
+
+          // Then try to sign in with the verified email/password
+          console.log("[Auth] Checking for session...");
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+          if (sessionError) {
+            console.error("[Auth] Session error:", sessionError);
+            toast({
+              title: "Verification Successful",
+              description: "Your email is verified. Please sign in to continue.",
+            });
+            window.location.href = '/login';
+            return;
+          }
 
           if (session?.user) {
-            // We got a session, refresh and redirect to dashboard
+            console.log("[Auth] Session found, refreshing...");
             await refreshSession();
             toast({
-              title: "Email Verified",
-              description: "Your email has been verified successfully. Welcome!",
+              title: "Welcome!",
+              description: "Your email is verified and you're now signed in.",
             });
             window.location.href = '/dashboard';
           } else {
-            // No session, but verification worked
+            console.log("[Auth] No session found after verification");
             toast({
-              title: "Email Verified",
-              description: "Your email has been verified. Please log in to continue.",
+              title: "Verification Successful",
+              description: "Your email is verified. Please sign in to continue.",
             });
             window.location.href = '/login';
           }
         } catch (error) {
-          console.error("Verification error:", error);
+          console.error("[Auth] Verification process error:", error);
           toast({
             title: "Verification Failed",
             description: error instanceof Error ? error.message : "Failed to verify email",

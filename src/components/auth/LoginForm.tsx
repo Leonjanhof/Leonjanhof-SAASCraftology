@@ -110,10 +110,12 @@ export default function LoginForm() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
+
+      // No need to handle redirect here - Supabase will do it automatically
       
-      // The actual user data will be handled in the callback route
-      // where we'll have access to the Discord user info
     } catch (error: any) {
       console.error("Discord login error:", error);
       toast({

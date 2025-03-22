@@ -139,8 +139,6 @@ export default function AuthProvider({
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token') || params.get('token_hash') || params.get('confirmation_token');
     const type = params.get('type');
-    const error = params.get('error');
-    const error_description = params.get('error_description');
 
     // If we have a token, we need to handle verification
     if (token) {
@@ -153,7 +151,7 @@ export default function AuthProvider({
           // Try to verify the token
           const { data, error: verifyError } = await supabase.auth.verifyOtp({
             token_hash: token,
-            type: type || 'email_confirmation'
+            type: 'email_confirmation' // Always use email_confirmation for this flow
           });
           
           console.log("Verification attempt result:", { success: !verifyError, data });
@@ -165,29 +163,14 @@ export default function AuthProvider({
               description: verifyError.message,
               variant: "destructive"
             });
+            window.location.href = '/login';
             return;
           }
 
-          // Try to get the session multiple times
-          let session = null;
-          let attempts = 0;
-          while (!session && attempts < 3) {
-            const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-            if (sessionError) {
-              console.error("Session error:", sessionError);
-              // Don't throw, just continue trying
-            }
-            if (currentSession?.user) {
-              session = currentSession;
-              break;
-            }
-            attempts++;
-            // Wait a bit between attempts
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-
-          console.log("Session after verification attempts:", {
-            attempts,
+          // After successful verification, try to sign in
+          const { data: { session }, error: signInError } = await supabase.auth.getSession();
+          
+          console.log("Session after verification:", { 
             hasSession: !!session,
             user: session?.user ? {
               id: session.user.id,
@@ -201,17 +184,15 @@ export default function AuthProvider({
             await refreshSession();
             toast({
               title: "Email Verified",
-              description: "Your email has been verified successfully. Redirecting to dashboard...",
+              description: "Your email has been verified successfully. Welcome!",
             });
-            window.history.replaceState({}, document.title, window.location.pathname);
             window.location.href = '/dashboard';
           } else {
-            // No session, but verification might have worked
+            // No session, but verification worked
             toast({
               title: "Email Verified",
               description: "Your email has been verified. Please log in to continue.",
             });
-            window.history.replaceState({}, document.title, window.location.pathname);
             window.location.href = '/login';
           }
         } catch (error) {
@@ -221,7 +202,6 @@ export default function AuthProvider({
             description: error instanceof Error ? error.message : "Failed to verify email",
             variant: "destructive"
           });
-          // On error, redirect to login
           window.location.href = '/login';
         } finally {
           setLoading(false);

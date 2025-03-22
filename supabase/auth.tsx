@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { toast } from "react-hot-toast";
 
 type UserRole = "admin" | "user";
 
@@ -144,6 +145,14 @@ export default function AuthProvider({
         const error = params.get('error');
         const error_description = params.get('error_description');
 
+        console.log("Auth callback params:", {
+          type,
+          hasAccessToken: !!access_token,
+          hasRefreshToken: !!refresh_token,
+          error,
+          error_description
+        });
+
         // Handle errors
         if (error) {
           console.error("Auth callback error:", error, error_description);
@@ -151,44 +160,65 @@ export default function AuthProvider({
         }
 
         // Handle successful auth
-        if ((access_token && refresh_token) || type === 'email_confirmation') {
+        if (access_token && refresh_token) {
           setLoading(true);
+          console.log("Setting session with tokens");
           
           try {
-            let session;
-            if (access_token && refresh_token) {
-              const { data, error } = await supabase.auth.setSession({
-                access_token,
-                refresh_token,
-              });
-              if (error) throw error;
-              session = data.session;
-            } else {
-              const { data, error } = await supabase.auth.getSession();
-              if (error) throw error;
-              session = data.session;
-            }
-
-            if (session?.user) {
-              // Refresh user data - role will be handled by trigger
+            const { data, error } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+            if (error) throw error;
+            
+            console.log("Session set successfully:", !!data.session);
+            
+            if (data.session?.user) {
               await refreshSession();
-
-              // Clear URL parameters
               window.history.replaceState({}, document.title, window.location.pathname);
-
-              // Redirect to dashboard
               window.location.href = '/dashboard';
             }
           } catch (error) {
-            console.error("Error in auth callback:", error);
+            console.error("Error setting session:", error);
             throw error;
-          } finally {
-            setLoading(false);
+          }
+        } else if (type === 'email_confirmation') {
+          setLoading(true);
+          console.log("Handling email confirmation");
+          
+          try {
+            // Get the current session
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError) throw sessionError;
+
+            console.log("Got session after confirmation:", !!session);
+
+            if (session?.user) {
+              // Force refresh the session to update email confirmation status
+              const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
+              if (refreshError) throw refreshError;
+
+              console.log("Session refreshed:", !!newSession);
+
+              await refreshSession();
+              window.history.replaceState({}, document.title, window.location.pathname);
+              window.location.href = '/dashboard';
+            } else {
+              // If no session, redirect to login
+              window.location.href = '/login';
+            }
+          } catch (error) {
+            console.error("Error in email confirmation:", error);
+            throw error;
           }
         }
       } catch (error) {
         console.error("Auth callback handler error:", error);
         setError(error instanceof Error ? error.message : "Authentication error");
+        // Redirect to login on error
+        window.location.href = '/login';
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -200,6 +230,9 @@ export default function AuthProvider({
       setLoading(true);
       setError(null);
 
+      const redirectTo = `${window.location.origin}/auth/callback?type=email_confirmation`;
+      console.log("Signup redirect URL:", redirectTo);
+
       // Sign up with Supabase Auth
       const { data: authData, error } = await supabase.auth.signUp({
         email,
@@ -209,11 +242,17 @@ export default function AuthProvider({
             full_name: fullName,
             role: 'user'
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: redirectTo,
         },
       });
 
       if (error) throw error;
+
+      console.log("Signup successful:", {
+        userId: authData.user?.id,
+        emailConfirmed: authData.user?.email_confirmed_at,
+        session: !!authData.session
+      });
 
       if (authData.user) {
         try {
@@ -234,6 +273,14 @@ export default function AuthProvider({
           console.error("Error in user creation:", error);
         }
       }
+
+      // Show success message
+      toast({
+        title: "Verification Email Sent",
+        description: "Please check your email to verify your account. Check your spam folder if you don't see it.",
+        duration: 6000,
+      });
+
     } catch (error) {
       console.error("Sign up error:", error);
       throw error instanceof Error ? error : new Error('Failed to sign up');

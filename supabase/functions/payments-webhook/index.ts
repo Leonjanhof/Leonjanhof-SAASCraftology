@@ -397,8 +397,55 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
 
     let supabaseResult = null;
 
+    // Check if there's a license for this user to get the product_name
+    console.log("Checking for existing license to get product_name");
+    const {
+      data: existingLicenseForProductName,
+      error: licenseProductNameError,
+    } = await supabaseClient
+      .from("licenses")
+      .select("product_name")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (licenseProductNameError) {
+      console.error(
+        "Error fetching license for product_name:",
+        licenseProductNameError,
+      );
+    }
+
+    // Get product_name from license if available
+    const licenseProductName =
+      existingLicenseForProductName?.product_name || "";
+    console.log("Product name from license:", licenseProductName);
+
     // Only create/update subscription if we have a subscription ID
     if (subscriptionId && stripeSubscription) {
+      // If we have a product name from the license, update the Stripe subscription metadata
+      if (licenseProductName) {
+        console.log(
+          "Updating Stripe subscription metadata with product_name from license:",
+          licenseProductName,
+        );
+        try {
+          await stripe.subscriptions.update(subscriptionId, {
+            metadata: {
+              ...stripeSubscription.metadata,
+              product_name: licenseProductName,
+            },
+          });
+          console.log(
+            "Successfully updated Stripe subscription metadata with product_name",
+          );
+        } catch (stripeUpdateError) {
+          console.error(
+            "Error updating Stripe subscription metadata:",
+            stripeUpdateError,
+          );
+        }
+      }
+
       // Prepare subscription data
       const subscriptionData: SubscriptionData = {
         stripe_id: subscriptionId,
@@ -418,7 +465,8 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
         metadata: {
           ...session.metadata,
           checkoutSessionId: session.id,
-          product_name: session.metadata?.product_name || "",
+          product_name:
+            licenseProductName || session.metadata?.product_name || "",
         },
       };
 
@@ -578,6 +626,29 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       .toUpperCase();
 
     console.log("Using product code for license generation:", productCode);
+
+    // If we have a subscription ID, update its metadata with the product name
+    if (subscriptionId) {
+      console.log(
+        "Updating subscription metadata with final product name:",
+        productName,
+      );
+      try {
+        await stripe.subscriptions.update(subscriptionId, {
+          metadata: {
+            product_name: productName,
+          },
+        });
+        console.log(
+          "Successfully updated Stripe subscription metadata with final product_name",
+        );
+      } catch (stripeUpdateError) {
+        console.error(
+          "Error updating Stripe subscription metadata with final product_name:",
+          stripeUpdateError,
+        );
+      }
+    }
 
     // Call the RPC function to generate a license key
     const { data: licenseKeyData, error: licenseKeyError } =

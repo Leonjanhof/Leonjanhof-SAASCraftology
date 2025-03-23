@@ -74,17 +74,20 @@ const Dashboard = () => {
 
         console.log("Initializing dashboard data for user:", user.id);
 
-        // Fetch licenses first, then subscriptions to ensure we have licenses to map to
+        // Fetch licenses and subscriptions in parallel for faster loading
         try {
-          await fetchLicenses();
-        } catch (licenseError) {
-          console.error("Error fetching licenses:", licenseError);
-        }
-
-        try {
-          await fetchSubscriptions();
-        } catch (subscriptionError) {
-          console.error("Error fetching subscriptions:", subscriptionError);
+          const [licensesResult, subscriptionsResult] = await Promise.all([
+            fetchLicenses(),
+            fetchSubscriptions()
+          ]);
+          
+          // After both are loaded, map subscriptions to licenses
+          if (licensesResult.length > 0 && Object.keys(subscriptionsResult).length > 0) {
+            console.log("Both licenses and subscriptions loaded, mapping them together");
+            mapSubscriptionsToLicenses(licensesResult, subscriptionsResult);
+          }
+        } catch (error) {
+          console.error("Error fetching data:", error);
         }
 
         console.log("Dashboard data initialized successfully");
@@ -194,9 +197,9 @@ const Dashboard = () => {
     console.log("Fetching subscriptions for user", user.id);
     setIsLoadingSubscriptions(true);
     try {
-      // Increase timeout to allow for subscription data to load
+      // Use a shorter timeout for faster feedback
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Request timeout")), 5000); // Increased timeout to 5 seconds
+        setTimeout(() => reject(new Error("Request timeout")), 3000); // 3 second timeout
       });
 
       const fetchPromise = supabase
@@ -226,79 +229,13 @@ const Dashboard = () => {
 
       if (data && data.length > 0) {
         console.log("Subscriptions found:", data.length);
-
-        // First, try to map subscriptions using metadata.product_name
-        for (const sub of data) {
-          // Extract product name from metadata if available
-          const productName = sub.metadata?.product_name;
-
-          // Debug log to see what's in the metadata
-          console.log("Subscription metadata for", sub.id, ":", sub.metadata);
-
-          if (productName) {
-            console.log(`Mapping subscription to product: ${productName}`);
-            subscriptionMap[productName] = sub;
-          }
-        }
-
-        // If we couldn't map any subscriptions using metadata, try to map them to licenses
-        if (Object.keys(subscriptionMap).length === 0 && licenses.length > 0) {
-          console.log("No product_name in metadata, using fallback mapping");
-
-          // Try to match subscriptions to licenses by creation date proximity
-          if (licenses.length > 0 && data.length > 0) {
-            // For each license, find the closest subscription by creation time
-            licenses.forEach((license) => {
-              const licenseCreatedAt = new Date(license.created_at).getTime();
-
-              // Find the subscription with the closest creation time to the license
-              let closestSub = data[0];
-              let smallestTimeDiff = Infinity;
-
-              data.forEach((sub) => {
-                const subCreatedAt = sub.started_at
-                  ? new Date(sub.started_at * 1000).getTime()
-                  : 0;
-                const timeDiff = Math.abs(licenseCreatedAt - subCreatedAt);
-
-                if (timeDiff < smallestTimeDiff) {
-                  smallestTimeDiff = timeDiff;
-                  closestSub = sub;
-                }
-              });
-
-              const productName = license.product_name;
-              console.log(
-                `Mapping subscription to license by time proximity: ${productName}`,
-              );
-              subscriptionMap[productName] = closestSub;
-            });
-          } else {
-            // Fallback to simple index mapping if time-based mapping fails
-            data.forEach((sub, index) => {
-              if (index < licenses.length) {
-                const productName = licenses[index].product_name;
-                console.log(
-                  `Fallback mapping to license by index: ${productName}`,
-                );
-                subscriptionMap[productName] = sub;
-              }
-            });
-          }
-        }
+        
+        // Store the raw subscription data for later mapping
+        return data;
       } else {
         console.log("No subscriptions found for user");
       }
 
-      console.log(
-        "Final subscription map:",
-        Object.keys(subscriptionMap).length,
-        "subscriptions mapped",
-      );
-      setSubscriptions(subscriptionMap);
-      // Force a re-render after mapping subscriptions
-      setSubscriptions({ ...subscriptionMap });
-      setIsLoadingSubscriptions(false);
       return subscriptionMap;
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
@@ -446,6 +383,95 @@ const Dashboard = () => {
                   fill="none"
                   stroke="currentColor"
                   xmlns="http://www.w3.org/2000/svg"
+  // New function to map subscriptions to licenses after both are loaded
+  const mapSubscriptionsToLicenses = (userLicenses: License[], subscriptionData: any) => {
+    console.log("Mapping subscriptions to licenses");
+    const subscriptionMap: Record<string, Subscription> = {};
+    
+    if (!Array.isArray(subscriptionData) || subscriptionData.length === 0 || userLicenses.length === 0) {
+      console.log("No data to map");
+      setSubscriptions({});
+      setIsLoadingSubscriptions(false);
+      return;
+    }
+    
+    // First, try to map subscriptions using metadata.product_name
+    for (const sub of subscriptionData) {
+      // Extract product name from metadata if available
+      const productName = sub.metadata?.product_name;
+
+      // Debug log to see what's in the metadata
+      console.log("Subscription metadata for", sub.id, ":", sub.metadata);
+
+      if (productName) {
+        console.log(`Mapping subscription to product: ${productName}`);
+        subscriptionMap[productName] = sub;
+        
+        // Also check if this subscription matches any license product_name directly
+        const matchingLicense = userLicenses.find(license => license.product_name === productName);
+        if (matchingLicense) {
+          console.log(`Direct match found between subscription metadata and license product_name: ${productName}`);
+        }
+      }
+    }
+
+    // If we couldn't map any subscriptions using metadata, try to map them to licenses
+    if (Object.keys(subscriptionMap).length === 0 && userLicenses.length > 0) {
+      console.log("No product_name in metadata, using fallback mapping");
+
+      // Try to match subscriptions to licenses by creation date proximity
+      if (userLicenses.length > 0 && subscriptionData.length > 0) {
+        // For each license, find the closest subscription by creation time
+        userLicenses.forEach((license) => {
+          const licenseCreatedAt = new Date(license.created_at).getTime();
+
+          // Find the subscription with the closest creation time to the license
+          let closestSub = subscriptionData[0];
+          let smallestTimeDiff = Infinity;
+
+          subscriptionData.forEach((sub: any) => {
+            const subCreatedAt = sub.started_at
+              ? new Date(sub.started_at * 1000).getTime()
+              : 0;
+            const timeDiff = Math.abs(licenseCreatedAt - subCreatedAt);
+
+            if (timeDiff < smallestTimeDiff) {
+              smallestTimeDiff = timeDiff;
+              closestSub = sub;
+            }
+          });
+
+          const productName = license.product_name;
+          console.log(
+            `Mapping subscription to license by time proximity: ${productName}`,
+          );
+          subscriptionMap[productName] = closestSub;
+        });
+      } else {
+        // Fallback to simple index mapping if time-based mapping fails
+        subscriptionData.forEach((sub: any, index: number) => {
+          if (index < userLicenses.length) {
+            const productName = userLicenses[index].product_name;
+            console.log(
+              `Fallback mapping to license by index: ${productName}`,
+            );
+            subscriptionMap[productName] = sub;
+          }
+        });
+      }
+    }
+    
+    console.log(
+      "Final subscription map:",
+      Object.keys(subscriptionMap).length,
+      "subscriptions mapped",
+    );
+    
+    // Update state with the mapped subscriptions
+    setSubscriptions(subscriptionMap);
+    setIsLoadingSubscriptions(false);
+  };
+
                 >
                   <path
                     strokeLinecap="round"

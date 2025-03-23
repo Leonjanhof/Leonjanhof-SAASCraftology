@@ -14,9 +14,11 @@ import {
   signInWithDiscord,
   handleDiscordSignup,
   processOAuthCallback,
-  refreshSession as refreshSessionUtil,
   verifyEmailToken,
 } from "./auth";
+
+// Import refreshSession directly from the session module
+import { refreshSession as refreshSessionUtil } from "./auth/session";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

@@ -42,13 +42,11 @@ export default function AuthProvider({
       setUserData(result.userData);
       setIsAdmin(result.isAdmin);
 
-      if (!result.user) {
-        // If no user, might need to sign out
-        await signOut();
-      }
+      // Remove automatic sign out when no user is found
+      // This prevents refresh loops on public pages
     } catch (error) {
       console.error("Error refreshing session:", error);
-      // Clear user state on error
+      // Clear user state on error without redirecting
       setUser(null);
       setUserData(null);
       setIsAdmin(false);
@@ -80,9 +78,12 @@ export default function AuthProvider({
 
           if (!userExists) {
             console.log(
-              "User no longer exists in database, signing out during init",
+              "User no longer exists in database, clearing session without redirect",
             );
-            await signOut();
+            // Just clear the user state without redirecting
+            setUser(null);
+            setUserData(null);
+            setIsAdmin(false);
             return;
           }
         }
@@ -91,7 +92,7 @@ export default function AuthProvider({
         setError(null);
       } catch (e) {
         console.error("Auth initialization error:", e);
-        // On error, clear user state and redirect to home
+        // On error, clear user state without redirecting
         setUser(null);
         setUserData(null);
         setIsAdmin(false);
@@ -137,8 +138,13 @@ export default function AuthProvider({
             console.error("Error creating user record for OAuth login:", error);
           }
         } else if (!userExists) {
-          console.log("User no longer exists in database, signing out");
-          await signOut();
+          console.log(
+            "User no longer exists in database, clearing session without redirect",
+          );
+          // Just clear the user state without redirecting
+          setUser(null);
+          setUserData(null);
+          setIsAdmin(false);
           return;
         }
 

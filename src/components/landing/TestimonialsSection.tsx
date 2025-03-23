@@ -147,6 +147,8 @@ const TestimonialsSection: React.FC = () => {
             rating: 5,
           },
         ]);
+        // Don't try to set up realtime subscription if the initial fetch failed
+        return;
       }
     };
 

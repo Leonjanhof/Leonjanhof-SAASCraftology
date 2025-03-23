@@ -46,11 +46,50 @@ const ProductsSection: React.FC = () => {
       setPlans(data || []);
     } catch (error) {
       console.error("Failed to fetch plans:", error);
+      // Set default plans when API fails to prevent errors
+      setPlans([
+        {
+          id: "price_1R1A9uGLqZ8YjU1vEkXXC79n",
+          object: "price",
+          active: true,
+          amount: 500,
+          currency: "usd",
+          interval: "month",
+          interval_count: 1,
+          product: "Autovoter",
+          created: Date.now(),
+          livemode: false,
+        },
+        {
+          id: "price_1R1AE1GLqZ8YjU1vUrS3ZSXJ",
+          object: "price",
+          active: true,
+          amount: 2500,
+          currency: "usd",
+          interval: "month",
+          interval_count: 1,
+          product: "Factionsbot 1.18.2",
+          created: Date.now(),
+          livemode: false,
+        },
+        {
+          id: "price_1R1AETGLqZ8YjU1vkuXGLxKY",
+          object: "price",
+          active: true,
+          amount: 500,
+          currency: "usd",
+          interval: "month",
+          interval_count: 1,
+          product: "EMC captcha solver",
+          created: Date.now(),
+          livemode: false,
+        },
+      ]);
       // Don't show error toast in production as this is expected to fail without backend
       if (import.meta.env.DEV) {
         toast({
           title: "Error",
-          description: "Failed to load plans. Please try again later.",
+          description: "Failed to load plans. Using default data.",
           variant: "destructive",
         });
       }

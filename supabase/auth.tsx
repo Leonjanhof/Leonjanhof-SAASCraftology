@@ -453,6 +453,15 @@ export default function AuthProvider({
         const refresh_token = params.get("refresh_token");
         const code = params.get("code");
         const provider = params.get("provider");
+        const source = params.get("source");
+
+        console.log("Auth callback parameters:", {
+          access_token,
+          refresh_token,
+          code,
+          provider,
+          source,
+        });
 
         // Handle OAuth callback (like Discord)
         if (code || provider) {
@@ -487,25 +496,76 @@ export default function AuthProvider({
                   "User";
 
                 // Create user record
-                await supabase.from("users").insert({
-                  id: data.session.user.id,
-                  email: data.session.user.email,
-                  full_name: fullName,
-                  token_identifier: data.session.user.id,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                  avatar_url: data.session.user.user_metadata?.avatar_url,
-                });
+                const { error: insertError } = await supabase
+                  .from("users")
+                  .insert({
+                    id: data.session.user.id,
+                    email: data.session.user.email,
+                    full_name: fullName,
+                    token_identifier: data.session.user.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    avatar_url: data.session.user.user_metadata?.avatar_url,
+                  });
 
-                console.log("User record created successfully");
+                if (insertError) {
+                  console.error("Error creating user record:", insertError);
+
+                  // Try again after a delay
+                  setTimeout(async () => {
+                    try {
+                      const { error: retryError } = await supabase
+                        .from("users")
+                        .insert({
+                          id: data.session.user.id,
+                          email: data.session.user.email,
+                          full_name: fullName,
+                          token_identifier: data.session.user.id,
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                          avatar_url:
+                            data.session.user.user_metadata?.avatar_url,
+                        });
+
+                      if (retryError) {
+                        console.error(
+                          "Retry error creating user record:",
+                          retryError,
+                        );
+                      } else {
+                        console.log(
+                          "User record created successfully on retry",
+                        );
+                      }
+                    } catch (retryErr) {
+                      console.error(
+                        "Exception in retry user creation:",
+                        retryErr,
+                      );
+                    }
+                  }, 1000);
+                } else {
+                  console.log("User record created successfully");
+                }
+
                 // Wait for triggers to complete
-                await new Promise((resolve) => setTimeout(resolve, 500));
+                await new Promise((resolve) => setTimeout(resolve, 1000));
               } catch (createError) {
                 console.error("Error creating user record:", createError);
               }
             }
 
             await refreshSession();
+
+            // Handle email verification specifically
+            if (source === "email") {
+              console.log(
+                "Email verification detected, redirecting to signup with verified=true",
+              );
+              window.location.href = "/signup?verified=true";
+              return;
+            }
+
             window.history.replaceState({}, document.title, "/");
             window.location.href = "/dashboard";
             return;
@@ -525,6 +585,60 @@ export default function AuthProvider({
             if (error) throw error;
 
             if (data.session?.user) {
+              // Check if this is an email verification
+              if (source === "email") {
+                console.log("Email verification with tokens detected");
+                // Create user record if it doesn't exist
+                const { data: userExists } = await supabase
+                  .from("users")
+                  .select("id")
+                  .eq("id", data.session.user.id)
+                  .maybeSingle();
+
+                if (!userExists) {
+                  console.log(
+                    "Creating user record for email verification user",
+                  );
+                  try {
+                    const fullName =
+                      data.session.user.user_metadata?.full_name ||
+                      data.session.user.email?.split("@")[0] ||
+                      "User";
+
+                    const { error: insertError } = await supabase
+                      .from("users")
+                      .insert({
+                        id: data.session.user.id,
+                        email: data.session.user.email,
+                        full_name: fullName,
+                        token_identifier: data.session.user.id,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                      });
+
+                    if (insertError) {
+                      console.error(
+                        "Error creating user record during email verification:",
+                        insertError,
+                      );
+                    } else {
+                      console.log(
+                        "User record created successfully during email verification",
+                      );
+                    }
+                  } catch (createError) {
+                    console.error(
+                      "Error in user creation during email verification:",
+                      createError,
+                    );
+                  }
+                }
+
+                await refreshSession();
+                window.location.href = "/signup?verified=true";
+                return;
+              }
+
               await refreshSession();
               window.history.replaceState({}, document.title, "/");
               window.location.href = "/dashboard";
@@ -570,7 +684,7 @@ export default function AuthProvider({
             full_name: fullName,
             role: "user",
           },
-          emailRedirectTo: `${window.location.origin}`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?source=email`,
         },
       });
 
@@ -584,18 +698,64 @@ export default function AuthProvider({
 
       if (authData.user) {
         try {
-          // Create user record only - role will be created by trigger
-          const { error: insertError } = await supabase.from("users").insert({
-            id: authData.user.id,
-            email: email,
-            full_name: fullName,
-            token_identifier: authData.user.id,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+          // First check if user already exists to avoid duplicate errors
+          const { data: existingUser, error: checkError } = await supabase
+            .from("users")
+            .select("id")
+            .eq("id", authData.user.id)
+            .maybeSingle();
 
-          if (insertError) {
-            console.error("Error creating user record:", insertError);
+          if (checkError) {
+            console.error("Error checking if user exists:", checkError);
+          }
+
+          // Only create user if they don't already exist
+          if (!existingUser) {
+            console.log("Creating new user record in database");
+            // Create user record only - role will be created by trigger
+            const { error: insertError } = await supabase.from("users").insert({
+              id: authData.user.id,
+              email: email,
+              full_name: fullName,
+              token_identifier: authData.user.id,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+            if (insertError) {
+              console.error("Error creating user record:", insertError);
+
+              // Try a second time with a delay in case of race condition
+              setTimeout(async () => {
+                try {
+                  const { error: retryError } = await supabase
+                    .from("users")
+                    .insert({
+                      id: authData.user.id,
+                      email: email,
+                      full_name: fullName,
+                      token_identifier: authData.user.id,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                    });
+
+                  if (retryError) {
+                    console.error(
+                      "Retry error creating user record:",
+                      retryError,
+                    );
+                  } else {
+                    console.log("User record created successfully on retry");
+                  }
+                } catch (retryErr) {
+                  console.error("Exception in retry user creation:", retryErr);
+                }
+              }, 1000);
+            } else {
+              console.log("User record created successfully");
+            }
+          } else {
+            console.log("User already exists in database, skipping creation");
           }
 
           // Show success message with more details

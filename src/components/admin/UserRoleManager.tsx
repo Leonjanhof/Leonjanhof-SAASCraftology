@@ -34,6 +34,8 @@ interface UserWithRole {
   email: string;
   full_name: string;
   role_name: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const USERS_PER_PAGE = 10;
@@ -63,23 +65,19 @@ const UserRoleManager = () => {
 
   useEffect(() => {
     // Filter users based on search query
-    if (searchQuery.trim() === "") {
-      setFilteredUsers(users);
-    } else {
-      const filtered = users.filter((user) => user.email.includes(searchQuery));
-      setFilteredUsers(filtered);
-    }
-    // Reset to first page when search changes
+    const filtered = users.filter(
+      (user) =>
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+    setFilteredUsers(filtered);
     setCurrentPage(1);
   }, [searchQuery, users]);
 
   useEffect(() => {
-    // Calculate total pages
     setTotalPages(
       Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE)),
     );
-
-    // Get current page of users
     const startIndex = (currentPage - 1) * USERS_PER_PAGE;
     const endIndex = startIndex + USERS_PER_PAGE;
     setDisplayedUsers(filteredUsers.slice(startIndex, endIndex));
@@ -88,35 +86,22 @@ const UserRoleManager = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("id, user_id, role_name, created_at, updated_at");
 
-      // Get user roles data with user full name
-      const { data: rolesData, error: rolesError } = await supabase.from(
-        "user_roles",
-      ).select(`
-          id,
-          user_id,
-          role_name,
-          created_at,
-          updated_at,
-          users!user_roles_user_id_fkey (full_name)
-        `);
+      if (rolesError) throw rolesError;
 
-      if (rolesError) {
-        console.error("Error fetching user roles:", rolesError);
-        throw rolesError;
-      }
-
-      if (!rolesData || rolesData.length === 0) {
+      if (!rolesData) {
         setUsers([]);
         setFilteredUsers([]);
         return;
       }
 
-      // Format the data including full name from users table
       const formattedUsers = rolesData.map((role) => ({
         id: role.id,
         email: role.user_id,
-        full_name: role.users?.full_name || "N/A",
+        full_name: "N/A",
         role_name: role.role_name || "user",
         created_at: role.created_at,
         updated_at: role.updated_at,
@@ -166,7 +151,6 @@ const UserRoleManager = () => {
         variant: "default",
       });
 
-      // Reset form and refresh user list
       setTargetEmail("");
       setSelectedRole("user");
       fetchUsers();
@@ -187,18 +171,13 @@ const UserRoleManager = () => {
       setIsUpdatingRole(true);
       setSelectedUserForUpdate(userId);
 
-      // Find user by ID
       const userToUpdate = users.find((user) => user.id === userId);
-      if (!userToUpdate) {
-        throw new Error("User not found");
-      }
+      if (!userToUpdate) throw new Error("User not found");
 
-      // Direct update to the user_roles table
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("user_roles")
         .update({ role_name: newRole })
-        .eq("id", userId)
-        .select();
+        .eq("id", userId);
 
       if (error) throw error;
 
@@ -208,16 +187,10 @@ const UserRoleManager = () => {
         variant: "default",
       });
 
-      // Update the user in the local state
-      const updatedUsers = users.map((user) => {
-        if (user.id === userId) {
-          return { ...user, role_name: newRole };
-        }
-        return user;
-      });
-
+      const updatedUsers = users.map((user) =>
+        user.id === userId ? { ...user, role_name: newRole } : user,
+      );
       setUsers(updatedUsers);
-      // The filtered users will be updated via the useEffect
     } catch (error) {
       console.error("Error updating user role:", error);
       toast({
@@ -232,15 +205,11 @@ const UserRoleManager = () => {
   };
 
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
   if (!isAdmin) {
@@ -313,7 +282,7 @@ const UserRoleManager = () => {
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search by user ID"
+                    placeholder="Search by email or name"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-8 w-64"
@@ -334,7 +303,7 @@ const UserRoleManager = () => {
               <div className="text-center py-8 border rounded-md bg-gray-50">
                 <p className="text-gray-500">
                   {searchQuery
-                    ? "No user roles found matching your search."
+                    ? "No users found matching your search."
                     : "No user roles found in the system."}
                 </p>
               </div>
@@ -343,40 +312,22 @@ const UserRoleManager = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         User ID
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Full Name
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Created At
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Updated At
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Current Role
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -456,7 +407,6 @@ const UserRoleManager = () => {
                   </tbody>
                 </table>
 
-                {/* Pagination controls */}
                 <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
                   <div className="text-sm text-gray-500">
                     Showing{" "}

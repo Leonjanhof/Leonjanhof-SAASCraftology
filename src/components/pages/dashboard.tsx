@@ -78,12 +78,17 @@ const Dashboard = () => {
         try {
           const [licensesResult, subscriptionsResult] = await Promise.all([
             fetchLicenses(),
-            fetchSubscriptions()
+            fetchSubscriptions(),
           ]);
-          
+
           // After both are loaded, map subscriptions to licenses
-          if (licensesResult.length > 0 && Object.keys(subscriptionsResult).length > 0) {
-            console.log("Both licenses and subscriptions loaded, mapping them together");
+          if (
+            licensesResult.length > 0 &&
+            Object.keys(subscriptionsResult).length > 0
+          ) {
+            console.log(
+              "Both licenses and subscriptions loaded, mapping them together",
+            );
             mapSubscriptionsToLicenses(licensesResult, subscriptionsResult);
           }
         } catch (error) {
@@ -229,7 +234,7 @@ const Dashboard = () => {
 
       if (data && data.length > 0) {
         console.log("Subscriptions found:", data.length);
-        
+
         // Store the raw subscription data for later mapping
         return data;
       } else {
@@ -254,47 +259,25 @@ const Dashboard = () => {
     }
   };
 
-  const openDiscord = () => {
-    window.open("https://discord.gg/5MbAqAhaCR", "_blank");
-  };
-
-  // Add a timeout to prevent infinite loading
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (loading) {
-        console.log("Loading timeout reached in render phase");
-        setLoadingTimeout(true);
-      }
-    }, 15000); // 15 seconds timeout
-
-    return () => clearTimeout(timer);
-  }, [loading]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <GearsBackground />
-        <div className="flex flex-col items-center bg-white/80 px-6 py-4 rounded-lg shadow-sm z-10">
-          <div className="flex items-center space-x-2 mb-2">
-            <Loader2 className="h-6 w-6 animate-spin text-green-400" />
-            <span>Loading your licenses...</span>
-          </div>
-          {loadingTimeout && (
-            <div className="text-sm text-amber-600 mt-2">
   // New function to map subscriptions to licenses after both are loaded
-  const mapSubscriptionsToLicenses = (userLicenses: License[], subscriptionData: any) => {
+  const mapSubscriptionsToLicenses = (
+    userLicenses: License[],
+    subscriptionData: any,
+  ) => {
     console.log("Mapping subscriptions to licenses");
     const subscriptionMap: Record<string, Subscription> = {};
-    
-    if (!Array.isArray(subscriptionData) || subscriptionData.length === 0 || userLicenses.length === 0) {
+
+    if (
+      !Array.isArray(subscriptionData) ||
+      subscriptionData.length === 0 ||
+      userLicenses.length === 0
+    ) {
       console.log("No data to map");
       setSubscriptions({});
       setIsLoadingSubscriptions(false);
       return;
     }
-    
+
     // First, try to map subscriptions using metadata.product_name
     for (const sub of subscriptionData) {
       // Extract product name from metadata if available
@@ -306,11 +289,15 @@ const Dashboard = () => {
       if (productName) {
         console.log(`Mapping subscription to product: ${productName}`);
         subscriptionMap[productName] = sub;
-        
+
         // Also check if this subscription matches any license product_name directly
-        const matchingLicense = userLicenses.find(license => license.product_name === productName);
+        const matchingLicense = userLicenses.find(
+          (license) => license.product_name === productName,
+        );
         if (matchingLicense) {
-          console.log(`Direct match found between subscription metadata and license product_name: ${productName}`);
+          console.log(
+            `Direct match found between subscription metadata and license product_name: ${productName}`,
+          );
         }
       }
     }
@@ -352,26 +339,53 @@ const Dashboard = () => {
         subscriptionData.forEach((sub: any, index: number) => {
           if (index < userLicenses.length) {
             const productName = userLicenses[index].product_name;
-            console.log(
-              `Fallback mapping to license by index: ${productName}`,
-            );
+            console.log(`Fallback mapping to license by index: ${productName}`);
             subscriptionMap[productName] = sub;
           }
         });
       }
     }
-    
+
     console.log(
       "Final subscription map:",
       Object.keys(subscriptionMap).length,
       "subscriptions mapped",
     );
-    
+
     // Update state with the mapped subscriptions
     setSubscriptions(subscriptionMap);
     setIsLoadingSubscriptions(false);
   };
 
+  const openDiscord = () => {
+    window.open("https://discord.gg/5MbAqAhaCR", "_blank");
+  };
+
+  // Add a timeout to prevent infinite loading
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.log("Loading timeout reached in render phase");
+        setLoadingTimeout(true);
+      }
+    }, 15000); // 15 seconds timeout
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <GearsBackground />
+        <div className="flex flex-col items-center bg-white/80 px-6 py-4 rounded-lg shadow-sm z-10">
+          <div className="flex items-center space-x-2 mb-2">
+            <Loader2 className="h-6 w-6 animate-spin text-green-400" />
+            <span>Loading your licenses...</span>
+          </div>
+          {loadingTimeout && (
+            <div className="text-sm text-amber-600 mt-2">
               <p>This is taking longer than expected.</p>
               <div className="flex flex-col space-y-2 mt-2 w-full">
                 <Button
@@ -472,7 +486,6 @@ const Dashboard = () => {
                   fill="none"
                   stroke="currentColor"
                   xmlns="http://www.w3.org/2000/svg"
-
                 >
                   <path
                     strokeLinecap="round"

@@ -38,18 +38,40 @@ export default function AuthProvider({
   const refreshSession = async () => {
     try {
       const result = await refreshSessionUtil();
-      setUser(result.user);
-      setUserData(result.userData);
-      setIsAdmin(result.isAdmin);
 
-      // Remove automatic sign out when no user is found
-      // This prevents refresh loops on public pages
+      // Only update state if there's a change to prevent unnecessary re-renders
+      const userChanged = JSON.stringify(user) !== JSON.stringify(result.user);
+      const userDataChanged =
+        JSON.stringify(userData) !== JSON.stringify(result.userData);
+      const isAdminChanged = isAdmin !== result.isAdmin;
+
+      if (userChanged || userDataChanged || isAdminChanged) {
+        console.log("Auth state updated from refresh", {
+          hadUser: !!user,
+          hasUser: !!result.user,
+          userChanged,
+          userDataChanged,
+          isAdminChanged,
+        });
+
+        setUser(result.user);
+        setUserData(result.userData);
+        setIsAdmin(result.isAdmin);
+      }
+
+      // If we have a user, ensure the session flag is set
+      if (result.user) {
+        localStorage.setItem("auth_session_active", "true");
+      }
+
+      return result;
     } catch (error) {
       console.error("Error refreshing session:", error);
       // Clear user state on error without redirecting
       setUser(null);
       setUserData(null);
       setIsAdmin(false);
+      return { user: null, userData: null, isAdmin: false };
     }
   };
 
@@ -60,12 +82,13 @@ export default function AuthProvider({
       localStorage.getItem("auth_session_active") === "true";
     console.log("Checking for stored session:", hasStoredSession);
 
-    // If we have a stored session flag but no user, try to refresh the session
-    if (hasStoredSession && !user) {
-      console.log("Found session flag but no user, refreshing session");
+    // If we have a stored session flag, always try to refresh the session
+    // This ensures the UI state is always in sync with the actual auth state
+    if (hasStoredSession) {
+      console.log("Found session flag, refreshing session");
       refreshSession();
     }
-  }, [user]);
+  }, []);
 
   // Initialize auth state
   useEffect(() => {
@@ -123,81 +146,100 @@ export default function AuthProvider({
 
     initAuth();
 
-    // Set up auth state change listener
+    // Set up auth state change listener with debounce to prevent multiple rapid updates
+    let authChangeTimeout: NodeJS.Timeout | null = null;
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event);
+      console.log("Auth state change event:", event);
 
-      if (session?.user) {
-        // Check if user exists in the database
-        const { data: userExists, error: userCheckError } = await supabase
-          .from("users")
-          .select("id")
-          .eq("id", session.user.id)
-          .maybeSingle();
+      // Clear any pending timeout
+      if (authChangeTimeout) {
+        clearTimeout(authChangeTimeout);
+      }
 
-        if (userCheckError) {
-          console.error("Error checking if user exists:", userCheckError);
-        }
+      // Debounce auth state changes to prevent multiple rapid updates
+      authChangeTimeout = setTimeout(async () => {
+        console.log("Auth state changed:", event);
 
-        // For OAuth providers like Discord, we need to create a user record if it doesn't exist
-        if (
-          !userExists &&
-          (event === "SIGNED_IN" || event === "USER_UPDATED")
-        ) {
-          console.log(
-            "User doesn't exist in database, creating new user record",
-          );
+        if (session?.user) {
+          // Check if user exists in the database
+          const { data: userExists, error: userCheckError } = await supabase
+            .from("users")
+            .select("id")
+            .eq("id", session.user.id)
+            .maybeSingle();
 
-          try {
-            await handleDiscordSignup(session.user.id, session.user);
-            // Refresh the session to get the latest data
-            await refreshSession();
-          } catch (error) {
-            console.error("Error creating user record for OAuth login:", error);
+          if (userCheckError) {
+            console.error("Error checking if user exists:", userCheckError);
           }
-        } else if (!userExists) {
-          console.log(
-            "User no longer exists in database, clearing session without redirect",
-          );
-          // Just clear the user state without redirecting
+
+          // For OAuth providers like Discord, we need to create a user record if it doesn't exist
+          if (
+            !userExists &&
+            (event === "SIGNED_IN" || event === "USER_UPDATED")
+          ) {
+            console.log(
+              "User doesn't exist in database, creating new user record",
+            );
+
+            try {
+              await handleDiscordSignup(session.user.id, session.user);
+              // Refresh the session to get the latest data
+              await refreshSession();
+            } catch (error) {
+              console.error(
+                "Error creating user record for OAuth login:",
+                error,
+              );
+            }
+          } else if (!userExists) {
+            console.log(
+              "User no longer exists in database, clearing session without redirect",
+            );
+            // Just clear the user state without redirecting
+            setUser(null);
+            setUserData(null);
+            setIsAdmin(false);
+            return;
+          }
+
+          setUser(session.user);
+          const data = await fetchUserData(session.user.id);
+          if (data) {
+            setUserData(data);
+            setIsAdmin(data.role === "admin");
+
+            // Log the sign-in event but don't redirect
+            if (event === "SIGNED_IN") {
+              console.log("New sign-in detected, session updated");
+              // No redirect - let the user stay on the current page
+            }
+
+            // Store the session in localStorage for better persistence
+            localStorage.setItem("auth_session_active", "true");
+          } else {
+            // If we can't fetch user data, the user might have been deleted
+            console.log("Could not fetch user data, signing out");
+            await signOut();
+          }
+        } else if (event === "SIGNED_OUT") {
+          // Only clear user state on explicit sign out
+          console.log("User signed out, clearing session");
           setUser(null);
           setUserData(null);
           setIsAdmin(false);
-          return;
+          localStorage.removeItem("auth_session_active");
         }
-
-        setUser(session.user);
-        const data = await fetchUserData(session.user.id);
-        if (data) {
-          setUserData(data);
-          setIsAdmin(data.role === "admin");
-
-          // Log the sign-in event but don't redirect
-          if (event === "SIGNED_IN") {
-            console.log("New sign-in detected, session updated");
-            // No redirect - let the user stay on the current page
-          }
-
-          // Store the session in localStorage for better persistence
-          localStorage.setItem("auth_session_active", "true");
-        } else {
-          // If we can't fetch user data, the user might have been deleted
-          console.log("Could not fetch user data, signing out");
-          await signOut();
-        }
-      } else if (event === "SIGNED_OUT") {
-        // Only clear user state on explicit sign out
-        console.log("User signed out, clearing session");
-        setUser(null);
-        setUserData(null);
-        setIsAdmin(false);
-        localStorage.removeItem("auth_session_active");
-      }
+      }, 100); // 100ms debounce
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (authChangeTimeout) {
+        clearTimeout(authChangeTimeout);
+      }
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Check if we have a verification token in the URL

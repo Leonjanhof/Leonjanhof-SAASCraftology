@@ -38,13 +38,21 @@ const Navbar: React.FC = () => {
         localStorage.getItem("auth_session_active") === "true";
       console.log("Navbar: Checking stored session flag:", hasStoredSession);
 
-      if (hasStoredSession) {
-        console.log("Navbar: Session flag found, refreshing session");
-        await refreshSession();
-      }
+      // Always refresh session on navbar mount to ensure UI is in sync
+      console.log("Navbar: Refreshing session on mount");
+      await refreshSession();
     };
 
     checkSession();
+
+    // Set up an interval to periodically check the session
+    const intervalId = setInterval(() => {
+      refreshSession().catch((err) =>
+        console.error("Error refreshing session in interval:", err),
+      );
+    }, 60000); // Check every minute
+
+    return () => clearInterval(intervalId);
   }, [refreshSession]);
 
   // Function to scroll to element with navbar offset

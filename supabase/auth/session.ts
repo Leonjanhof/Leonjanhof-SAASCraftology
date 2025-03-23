@@ -8,10 +8,32 @@ export const refreshSession = async () => {
     const hasStoredSession =
       localStorage.getItem("auth_session_active") === "true";
     console.log("Refreshing session, stored session flag:", hasStoredSession);
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+
+    // Add retry logic for getSession
+    let session = null;
+    let sessionError = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      try {
+        const result = await supabase.auth.getSession();
+        session = result.data.session;
+        sessionError = result.error;
+        if (!sessionError) break;
+
+        console.log(
+          `Session fetch attempt ${attempts + 1} failed, retrying...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        attempts++;
+      } catch (e) {
+        console.error(`Session fetch attempt ${attempts + 1} exception:`, e);
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        attempts++;
+      }
+    }
+
     if (sessionError) throw sessionError;
 
     if (session?.user) {

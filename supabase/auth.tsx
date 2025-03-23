@@ -56,9 +56,11 @@ export default function AuthProvider({
   // Check for existing session on page load/navigation
   useEffect(() => {
     // Check if we have a stored session flag
-    const hasStoredSession = localStorage.getItem('auth_session_active') === 'true';
+    const hasStoredSession =
+      localStorage.getItem("auth_session_active") === "true";
     console.log("Checking for stored session:", hasStoredSession);
-    
+  }, []);
+
   // Initialize auth state
   useEffect(() => {
     async function initAuth() {
@@ -165,9 +167,9 @@ export default function AuthProvider({
             console.log("New sign-in detected, session updated");
             // No redirect - let the user stay on the current page
           }
-          
+
           // Store the session in localStorage for better persistence
-          localStorage.setItem('auth_session_active', 'true');
+          localStorage.setItem("auth_session_active", "true");
         } else {
           // If we can't fetch user data, the user might have been deleted
           console.log("Could not fetch user data, signing out");
@@ -179,7 +181,7 @@ export default function AuthProvider({
         setUser(null);
         setUserData(null);
         setIsAdmin(false);
-        localStorage.removeItem('auth_session_active');
+        localStorage.removeItem("auth_session_active");
       }
     });
 
@@ -493,8 +495,8 @@ export default function AuthProvider({
 
       if (data.user) {
         // Set session flag immediately after successful sign in
-        localStorage.setItem('auth_session_active', 'true');
-        
+        localStorage.setItem("auth_session_active", "true");
+
         const userData = await fetchUserData(data.user.id);
         if (userData) {
           setUserData(userData);
@@ -519,9 +521,9 @@ export default function AuthProvider({
       setUserData(null);
       setIsAdmin(false);
       setError(null);
-      
+
       // Clear the session flag
-      localStorage.removeItem('auth_session_active');
+      localStorage.removeItem("auth_session_active");
 
       // Force redirect to home page
       console.log("Sign out successful, redirecting to home");

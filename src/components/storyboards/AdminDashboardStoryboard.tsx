@@ -1,12 +1,136 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Users, Database, Settings, UserCog } from "lucide-react";
+import {
+  ShieldAlert,
+  Users,
+  Database,
+  Settings,
+  UserCog,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserRoleManager from "../admin/UserRoleManager";
+import { supabase } from "../../../supabase/supabase";
+import { checkSupabaseConnection } from "../../../supabase/supabase";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  getRecentActivity,
+  formatActivityForDisplay,
+  ActivityLog,
+} from "@/lib/api/activity";
 
 export default function AdminDashboardStoryboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [licenseCount, setLicenseCount] = useState<number | null>(null);
+  const [activeLicenseCount, setActiveLicenseCount] = useState<number | null>(
+    null,
+  );
+  const [systemStatus, setSystemStatus] = useState<
+    "active" | "inactive" | "checking"
+  >("checking");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([]);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(true);
+  const { toast } = useToast();
+
+  const fetchStats = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Check system status
+      const isConnected = await checkSupabaseConnection();
+      setSystemStatus(isConnected ? "active" : "inactive");
+
+      // Fetch user count
+      const { count: userCountResult, error: userError } = await supabase
+        .from("users")
+        .select("*", { count: "exact", head: true });
+
+      if (userError) throw userError;
+      setUserCount(userCountResult);
+
+      // Fetch license counts
+      const { count: totalLicenseCount, error: licenseError } = await supabase
+        .from("licenses")
+        .select("*", { count: "exact", head: true });
+
+      if (licenseError) throw licenseError;
+      setLicenseCount(totalLicenseCount);
+
+      // Fetch active license count
+      const { count: activeLicenses, error: activeLicenseError } =
+        await supabase
+          .from("licenses")
+          .select("*", { count: "exact", head: true })
+          .eq("active", true);
+
+      if (activeLicenseError) throw activeLicenseError;
+      setActiveLicenseCount(activeLicenses);
+
+      // Fetch recent activity
+      await fetchRecentActivity();
+    } catch (err) {
+      console.error("Error fetching admin stats:", err);
+      setError("Failed to load statistics. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard statistics",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchRecentActivity = async () => {
+    setIsLoadingActivity(true);
+    try {
+      const activities = await getRecentActivity(10);
+      setRecentActivity(activities);
+    } catch (err) {
+      console.error("Error fetching recent activity:", err);
+      // Don't show toast for activity errors to avoid overwhelming the user
+    } finally {
+      setIsLoadingActivity(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+
+    // Set up realtime subscription for webhook_events table
+    const channel = supabase
+      .channel("admin-activity")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "webhook_events" },
+        () => {
+          console.log("Activity change detected, refreshing activity data");
+          fetchRecentActivity();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      // Clean up subscription when component unmounts
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleRefresh = () => {
+    fetchStats();
+    toast({
+      title: "Refreshing",
+      description: "Dashboard statistics are being updated",
+    });
+  };
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
@@ -18,13 +142,26 @@ export default function AdminDashboardStoryboard() {
               Manage your application settings and users
             </p>
           </div>
-          <Button className="bg-green-400 hover:text-green-400 text-white relative overflow-hidden group">
-            <span className="relative z-10 transition-colors duration-300">
-              <ShieldAlert className="h-4 w-4 mr-2 inline" />
-              Admin Mode
-            </span>
-            <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="mr-2"
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+            <Button className="bg-green-400 hover:text-green-400 text-white relative overflow-hidden group">
+              <span className="relative z-10 transition-colors duration-300">
+                <ShieldAlert className="h-4 w-4 mr-2 inline" />
+                Admin Mode
+              </span>
+              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+            </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
@@ -36,6 +173,13 @@ export default function AdminDashboardStoryboard() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md flex items-center text-red-700">
+                <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+                <p>{error}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card>
                 <CardHeader className="pb-2">
@@ -45,10 +189,21 @@ export default function AdminDashboardStoryboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">128</div>
-                  <p className="text-sm text-gray-500">
-                    Total registered users
-                  </p>
+                  {isLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <RefreshCw className="h-5 w-5 animate-spin text-green-400" />
+                      <span className="text-gray-500">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-3xl font-bold">
+                        {userCount !== null ? userCount : "--"}
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Total registered users
+                      </p>
+                    </>
+                  )}
                   <div className="mt-4">
                     <Button
                       variant="outline"
@@ -70,8 +225,33 @@ export default function AdminDashboardStoryboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">85</div>
-                  <p className="text-sm text-gray-500">Active licenses</p>
+                  {isLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <RefreshCw className="h-5 w-5 animate-spin text-green-400" />
+                      <span className="text-gray-500">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-3xl font-bold">
+                        {activeLicenseCount !== null
+                          ? activeLicenseCount
+                          : "--"}
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Active licenses{" "}
+                        {licenseCount !== null &&
+                        activeLicenseCount !== null &&
+                        licenseCount > 0
+                          ? `(${Math.round((activeLicenseCount / licenseCount) * 100)}%)`
+                          : ""}
+                      </p>
+                      {licenseCount !== null && licenseCount > 0 && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {licenseCount} total licenses
+                        </p>
+                      )}
+                    </>
+                  )}
                   <div className="mt-4">
                     <Button
                       variant="outline"
@@ -93,8 +273,29 @@ export default function AdminDashboardStoryboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">Active</div>
-                  <p className="text-sm text-gray-500">System status</p>
+                  {isLoading || systemStatus === "checking" ? (
+                    <div className="flex items-center space-x-2">
+                      <RefreshCw className="h-5 w-5 animate-spin text-green-400" />
+                      <span className="text-gray-500">Checking...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-3xl font-bold flex items-center">
+                        {systemStatus === "active" ? (
+                          <>
+                            <CheckCircle className="h-6 w-6 mr-2 text-green-500" />
+                            <span className="text-green-600">Active</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-6 w-6 mr-2 text-red-500" />
+                            <span className="text-red-600">Inactive</span>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500">System status</p>
+                    </>
+                  )}
                   <div className="mt-4">
                     <Button
                       variant="outline"
@@ -110,46 +311,57 @@ export default function AdminDashboardStoryboard() {
             </div>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle className="flex items-center">
+                  <Clock className="h-5 w-5 mr-2 text-green-400" />
+                  Recent Activity
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={fetchRecentActivity}
+                  disabled={isLoadingActivity}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 mr-1 ${isLoadingActivity ? "animate-spin" : ""}`}
+                  />
+                  Refresh
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    {
-                      action: "User Created",
-                      details: "New user registered: john.doe@example.com",
-                      time: "2 hours ago",
-                    },
-                    {
-                      action: "License Activated",
-                      details: "License #LIC-1234 activated by user ID: 567",
-                      time: "5 hours ago",
-                    },
-                    {
-                      action: "Role Changed",
-                      details: "User jane.smith@example.com promoted to admin",
-                      time: "1 day ago",
-                    },
-                    {
-                      action: "System Update",
-                      details: "System settings updated by admin",
-                      time: "2 days ago",
-                    },
-                  ].map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-start pb-3 border-b border-gray-100"
-                    >
-                      <div>
-                        <div className="font-medium">{item.action}</div>
-                        <div className="text-sm text-gray-500">
-                          {item.details}
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-400">{item.time}</div>
+                  {isLoadingActivity ? (
+                    <div className="flex justify-center py-4">
+                      <RefreshCw className="h-6 w-6 animate-spin text-green-400" />
                     </div>
-                  ))}
+                  ) : recentActivity.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      No recent activity found
+                    </div>
+                  ) : (
+                    recentActivity.map((activity) => {
+                      const formattedActivity =
+                        formatActivityForDisplay(activity);
+                      return (
+                        <div
+                          key={activity.id}
+                          className="flex justify-between items-start pb-3 border-b border-gray-100"
+                        >
+                          <div>
+                            <div className="font-medium">
+                              {formattedActivity.action}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {formattedActivity.details}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {formattedActivity.time}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -319,13 +319,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      set_user_role: {
-        Args: {
-          user_email: string
-          new_role: string
-        }
-        Returns: boolean
-      }
       user_has_permission: {
         Args: {
           user_uuid: string

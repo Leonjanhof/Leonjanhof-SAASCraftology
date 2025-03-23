@@ -20,6 +20,9 @@ interface Subscription {
   currency: string;
   cancel_at_period_end?: boolean;
   current_period_end?: number;
+  current_period_start?: number;
+  started_at?: number;
+  metadata?: Record<string, any>;
 }
 
 const Dashboard = () => {
@@ -56,7 +59,7 @@ const Dashboard = () => {
           });
         }
       }
-    }, 5000); // Reduced to 5 second timeout
+    }, 1000); // Reduced to 1 second timeout for faster feedback
 
     const initDashboard = async () => {
       try {
@@ -71,21 +74,18 @@ const Dashboard = () => {
 
         console.log("Initializing dashboard data for user:", user.id);
 
-        // Use Promise.allSettled to ensure both operations complete regardless of errors
-        const results = await Promise.allSettled([
-          fetchLicenses(),
-          fetchSubscriptions(),
-        ]);
+        // Fetch licenses first, then subscriptions to ensure we have licenses to map to
+        try {
+          await fetchLicenses();
+        } catch (licenseError) {
+          console.error("Error fetching licenses:", licenseError);
+        }
 
-        // Log results but don't throw errors
-        results.forEach((result, index) => {
-          if (result.status === "rejected") {
-            console.error(
-              `Operation ${index === 0 ? "fetchLicenses" : "fetchSubscriptions"} failed:`,
-              result.reason,
-            );
-          }
-        });
+        try {
+          await fetchSubscriptions();
+        } catch (subscriptionError) {
+          console.error("Error fetching subscriptions:", subscriptionError);
+        }
 
         console.log("Dashboard data initialized successfully");
       } catch (error) {
@@ -196,13 +196,13 @@ const Dashboard = () => {
     try {
       // Add a timeout to prevent hanging requests
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Request timeout")), 5000);
+        setTimeout(() => reject(new Error("Request timeout")), 1000); // Reduced timeout to 1 second
       });
 
       const fetchPromise = supabase
         .from("subscriptions")
         .select(
-          "id, stripe_id, status, price_id, amount, currency, metadata, cancel_at_period_end, current_period_end",
+          "id, stripe_id, status, price_id, amount, currency, metadata, cancel_at_period_end, current_period_end, current_period_start, started_at",
         )
         .eq("user_id", user.id);
 
@@ -228,7 +228,7 @@ const Dashboard = () => {
         console.log("Subscriptions found:", data.length);
 
         // First, try to map subscriptions using metadata.product_name
-        data.forEach((sub) => {
+        for (const sub of data) {
           // Extract product name from metadata if available
           const productName = sub.metadata?.product_name;
 
@@ -239,20 +239,52 @@ const Dashboard = () => {
             console.log(`Mapping subscription to product: ${productName}`);
             subscriptionMap[productName] = sub;
           }
-        });
+        }
 
         // If we couldn't map any subscriptions using metadata, try to map them to licenses
         if (Object.keys(subscriptionMap).length === 0 && licenses.length > 0) {
           console.log("No product_name in metadata, using fallback mapping");
 
-          // Map each subscription to a license if possible
-          data.forEach((sub, index) => {
-            if (index < licenses.length) {
-              const productName = licenses[index].product_name;
-              console.log(`Fallback mapping to license: ${productName}`);
-              subscriptionMap[productName] = sub;
-            }
-          });
+          // Try to match subscriptions to licenses by creation date proximity
+          if (licenses.length > 0 && data.length > 0) {
+            // For each license, find the closest subscription by creation time
+            licenses.forEach((license) => {
+              const licenseCreatedAt = new Date(license.created_at).getTime();
+
+              // Find the subscription with the closest creation time to the license
+              let closestSub = data[0];
+              let smallestTimeDiff = Infinity;
+
+              data.forEach((sub) => {
+                const subCreatedAt = sub.started_at
+                  ? new Date(sub.started_at * 1000).getTime()
+                  : 0;
+                const timeDiff = Math.abs(licenseCreatedAt - subCreatedAt);
+
+                if (timeDiff < smallestTimeDiff) {
+                  smallestTimeDiff = timeDiff;
+                  closestSub = sub;
+                }
+              });
+
+              const productName = license.product_name;
+              console.log(
+                `Mapping subscription to license by time proximity: ${productName}`,
+              );
+              subscriptionMap[productName] = closestSub;
+            });
+          } else {
+            // Fallback to simple index mapping if time-based mapping fails
+            data.forEach((sub, index) => {
+              if (index < licenses.length) {
+                const productName = licenses[index].product_name;
+                console.log(
+                  `Fallback mapping to license by index: ${productName}`,
+                );
+                subscriptionMap[productName] = sub;
+              }
+            });
+          }
         }
       } else {
         console.log("No subscriptions found for user");
@@ -264,6 +296,7 @@ const Dashboard = () => {
         "subscriptions mapped",
       );
       setSubscriptions(subscriptionMap);
+      setIsLoadingSubscriptions(false); // Set loading to false as soon as we have data
       return subscriptionMap;
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
@@ -480,6 +513,11 @@ const Dashboard = () => {
                     license.active ? "verified" : "unverified"
                   }
                   isLoadingSubscriptions={isLoadingSubscriptions}
+                  subscriptionStartDate={
+                    subscription?.current_period_start ||
+                    subscription?.started_at
+                  }
+                  subscriptionEndDate={subscription?.current_period_end}
                 />
               );
             })}

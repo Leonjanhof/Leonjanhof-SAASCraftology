@@ -52,6 +52,8 @@ interface LicenseCardProps {
   currency?: string | null;
   verificationStatus?: "verified" | "unverified" | "pending";
   isLoadingSubscriptions?: boolean;
+  subscriptionStartDate?: number | null;
+  subscriptionEndDate?: number | null;
 }
 
 const LicenseCard: React.FC<LicenseCardProps> = ({
@@ -67,12 +69,18 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
   currency = "USD",
   verificationStatus = "unverified",
   isLoadingSubscriptions = false,
+  subscriptionStartDate = null,
+  subscriptionEndDate = null,
 }) => {
   const { toast } = useToast();
   const [isResetting, setIsResetting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [subscriptionEndDate, setSubscriptionEndDate] = useState<string | null>(
-    null,
+  const [localSubscriptionEndDate, setLocalSubscriptionEndDate] = useState<
+    string | null
+  >(
+    subscriptionEndDate
+      ? new Date(subscriptionEndDate * 1000).toLocaleDateString()
+      : null,
   );
   const [isCancelled, setIsCancelled] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -155,7 +163,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
       // Update local state with subscription end date
       if (data?.data?.current_period_end) {
         const endDate = new Date(data.data.current_period_end * 1000);
-        setSubscriptionEndDate(endDate.toLocaleDateString());
+        setLocalSubscriptionEndDate(endDate.toLocaleDateString());
         setIsCancelled(true);
       }
 
@@ -239,7 +247,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
 
           if (data?.cancel_at_period_end && data?.current_period_end) {
             const endDate = new Date(data.current_period_end * 1000);
-            setSubscriptionEndDate(endDate.toLocaleDateString());
+            setLocalSubscriptionEndDate(endDate.toLocaleDateString());
             setIsCancelled(true);
           }
         } catch (err) {
@@ -421,67 +429,99 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
             </span>
           </div>
         ) : subscriptionId ? (
-          isCancelled || subscriptionEndDate ? (
-            <div className="w-full text-center">
-              <div className="p-3 bg-amber-50 text-amber-800 rounded-md text-center">
-                <p className="text-sm font-medium">Subscription cancelled</p>
-                <p className="text-sm">Access ends on {subscriptionEndDate}.</p>
+          <div className="w-full">
+            {/* Subscription dates info */}
+            {(subscriptionStartDate || subscriptionEndDate) && (
+              <div className="mb-3 p-2 bg-gray-50 rounded-md text-sm">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-gray-600 font-medium">Started:</span>
+                  <span className="text-gray-800">
+                    {subscriptionStartDate
+                      ? new Date(
+                          subscriptionStartDate * 1000,
+                        ).toLocaleDateString()
+                      : "Unknown"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 font-medium">
+                    Current period:
+                  </span>
+                  <span className="text-gray-800">
+                    {subscriptionEndDate
+                      ? new Date(
+                          subscriptionEndDate * 1000,
+                        ).toLocaleDateString()
+                      : "Unknown"}
+                  </span>
+                </div>
               </div>
-            </div>
-          ) : (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full border-red-200 text-red-500 hover:bg-red-50 hover:text-green-400"
-                  disabled={isCancelling}
-                >
-                  {isCancelling ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>Cancel subscription</>
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    <div className="space-y-4">
-                      <p>
-                        You are about to cancel your subscription for{" "}
-                        <strong>{productName}</strong>.
-                      </p>
-                      <div className="flex items-center p-3 bg-amber-50 text-amber-800 rounded-md">
-                        <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
-                        <p className="text-sm">
-                          You will still have access until the end of your
-                          current billing period, but your subscription will not
-                          renew.
+            )}
+
+            {isCancelled || localSubscriptionEndDate ? (
+              <div className="w-full text-center">
+                <div className="p-3 bg-amber-50 text-amber-800 rounded-md text-center">
+                  <p className="text-sm font-medium">Subscription cancelled</p>
+                  <p className="text-sm">
+                    Access ends on {localSubscriptionEndDate}.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full border-red-200 text-red-500 hover:bg-red-50 hover:text-green-400"
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>Cancel subscription</>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      <div className="space-y-4">
+                        <p>
+                          You are about to cancel your subscription for{" "}
+                          <strong>{productName}</strong>.
+                        </p>
+                        <div className="flex items-center p-3 bg-amber-50 text-amber-800 rounded-md">
+                          <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+                          <p className="text-sm">
+                            You will still have access until the end of your
+                            current billing period, but your subscription will
+                            not renew.
+                          </p>
+                        </div>
+                        <p>
+                          This action cannot be undone. You would need to
+                          purchase a new subscription if you change your mind.
                         </p>
                       </div>
-                      <p>
-                        This action cannot be undone. You would need to purchase
-                        a new subscription if you change your mind.
-                      </p>
-                    </div>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleCancelSubscription}
-                    className="bg-red-500 hover:bg-red-600 text-white"
-                  >
-                    Yes, cancel subscription
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleCancelSubscription}
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      Yes, cancel subscription
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         ) : (
           <div className="w-full text-center">
             <p className="text-sm text-gray-500">

@@ -43,29 +43,41 @@ serve(async (req) => {
 
       // If no role exists, create one
       if (!existingRole) {
-        // Try to use the RPC function first
-        const { error: rpcError } = await supabaseClient.rpc("set_user_role", {
-          user_email: "", // We don't have the email here, but the function will use user_id
-          new_role: "user",
-        });
+        // Try direct insert with explicit column references
+        const { error: insertError } = await supabaseClient
+          .from("user_roles")
+          .insert({
+            user_id: userId,
+            role_name: "user",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
 
-        if (rpcError) {
-          console.log(
-            `RPC error, falling back to direct insert: ${rpcError.message}`,
+        if (insertError) {
+          console.log(`Insert error: ${insertError.message}`);
+
+          // Try using the create_user_role RPC function
+          const { error: rpcError } = await supabaseClient.rpc(
+            "create_user_role",
+            {
+              user_id_param: userId,
+              role_name_param: "user",
+            },
           );
-          // Fallback to direct insert
-          const { error: insertError } = await supabaseClient
-            .from("user_roles")
-            .insert({
-              user_id: userId,
-              role_name: "user",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .select();
 
-          if (insertError) {
-            throw new Error(`Error creating user role: ${insertError.message}`);
+          if (rpcError) {
+            console.log(`RPC error: ${rpcError.message}`);
+
+            // Last resort: Try raw SQL via create_missing_user_roles
+            const { error: sqlError } = await supabaseClient.rpc(
+              "create_missing_user_roles",
+            );
+
+            if (sqlError) {
+              throw new Error(
+                `All attempts to create user role failed: ${sqlError.message}`,
+              );
+            }
           }
         }
 

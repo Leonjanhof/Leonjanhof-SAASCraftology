@@ -282,6 +282,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      create_user_role: {
+        Args: {
+          user_id_param: string
+          role_name_param: string
+        }
+        Returns: boolean
+      }
       custom_access_token_hook: {
         Args: {
           event: Json

@@ -68,9 +68,10 @@ export const createUserRecord = async (
     // Only create user if they don't already exist
     if (!existingUser) {
       console.log("Creating new user record in database");
-      // Create user record only - role will be created by trigger
+      // Create user record with explicit user_id field
       const { error: insertError } = await supabase.from("users").insert({
         id: userId,
+        user_id: userId, // Explicitly set user_id to match id
         email: email,
         full_name: fullName,
         token_identifier: userId,
@@ -87,6 +88,7 @@ export const createUserRecord = async (
           try {
             const { error: retryError } = await supabase.from("users").insert({
               id: userId,
+              user_id: userId, // Explicitly set user_id to match id
               email: email,
               full_name: fullName,
               token_identifier: userId,
@@ -111,32 +113,51 @@ export const createUserRecord = async (
       // Manually create user role since trigger might not fire
       try {
         console.log("Manually creating user role for new user");
-        // Use RPC function to create user role to avoid ambiguous column reference
-        const { error: roleError } = await supabase.rpc("set_user_role", {
-          user_email: email || "",
-          new_role: "user",
-        });
+        // Try direct insert first with explicit table reference
+        const { error: insertRoleError } = await supabase
+          .from("user_roles")
+          .insert({
+            user_id: userId,
+            role_name: "user",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
 
-        if (roleError) {
-          console.error("Error manually creating user role:", roleError);
-          // Fallback to direct insert with explicit table reference
-          const { error: insertError } = await supabase
-            .from("user_roles")
-            .insert({
-              user_id: userId,
-              role_name: "user",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .select();
+        if (insertRoleError) {
+          console.error("Error directly inserting user role:", insertRoleError);
+          // Try RPC function as fallback
+          const { error: roleError } = await supabase.rpc("create_user_role", {
+            user_id_param: userId,
+            role_name_param: "user",
+          });
 
-          if (insertError) {
-            console.error("Fallback insert error:", insertError);
+          if (roleError) {
+            console.error("Error creating user role via RPC:", roleError);
+            // Last resort: call the fix-user-roles function
+            try {
+              const { data, error } = await supabase.functions.invoke(
+                "fix-user-roles",
+                {
+                  body: { userId },
+                },
+              );
+
+              if (error) {
+                console.error("Error calling fix-user-roles function:", error);
+              } else {
+                console.log("User role created via edge function:", data);
+              }
+            } catch (funcErr) {
+              console.error(
+                "Exception calling fix-user-roles function:",
+                funcErr,
+              );
+            }
           } else {
-            console.log("User role created successfully via fallback");
+            console.log("User role created successfully via RPC");
           }
         } else {
-          console.log("User role created successfully via RPC");
+          console.log("User role created successfully via direct insert");
         }
       } catch (roleErr) {
         console.error("Exception in manual user role creation:", roleErr);
@@ -159,35 +180,60 @@ export const createUserRecord = async (
       if (!existingRole) {
         console.log("User role doesn't exist, creating it manually");
         try {
-          // Use RPC function to create user role to avoid ambiguous column reference
-          const { error: roleError } = await supabase.rpc("set_user_role", {
-            user_email: email || "",
-            new_role: "user",
-          });
+          // Try direct insert first with explicit table reference
+          const { error: insertRoleError } = await supabase
+            .from("user_roles")
+            .insert({
+              user_id: userId,
+              role_name: "user",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
 
-          if (roleError) {
+          if (insertRoleError) {
             console.error(
-              "Error manually creating user role via RPC:",
-              roleError,
+              "Error directly inserting user role:",
+              insertRoleError,
             );
-            // Fallback to direct insert with explicit table reference
-            const { error: insertError } = await supabase
-              .from("user_roles")
-              .insert({
-                user_id: userId,
-                role_name: "user",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .select();
+            // Try RPC function as fallback
+            const { error: roleError } = await supabase.rpc(
+              "create_user_role",
+              {
+                user_id_param: userId,
+                role_name_param: "user",
+              },
+            );
 
-            if (insertError) {
-              console.error("Fallback insert error:", insertError);
+            if (roleError) {
+              console.error("Error creating user role via RPC:", roleError);
+              // Last resort: call the fix-user-roles function
+              try {
+                const { data, error } = await supabase.functions.invoke(
+                  "fix-user-roles",
+                  {
+                    body: { userId },
+                  },
+                );
+
+                if (error) {
+                  console.error(
+                    "Error calling fix-user-roles function:",
+                    error,
+                  );
+                } else {
+                  console.log("User role created via edge function:", data);
+                }
+              } catch (funcErr) {
+                console.error(
+                  "Exception calling fix-user-roles function:",
+                  funcErr,
+                );
+              }
             } else {
-              console.log("User role created successfully via fallback");
+              console.log("User role created successfully via RPC");
             }
           } else {
-            console.log("User role created successfully via RPC");
+            console.log("User role created successfully via direct insert");
           }
         } catch (roleErr) {
           console.error("Exception in manual user role creation:", roleErr);

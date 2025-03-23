@@ -3,27 +3,20 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { toast } from "@/components/ui/use-toast";
 
-type UserRole = "admin" | "user";
-
-type UserData = {
-  id: string;
-  email: string;
-  full_name: string;
-  role: UserRole;
-  permissions?: string[];
-};
-
-type AuthContextType = {
-  user: User | null;
-  userData: UserData | null;
-  loading: boolean;
-  error: string | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  isAdmin: boolean;
-  refreshSession: () => Promise<void>;
-};
+// Import modularized auth functions
+import {
+  AuthContextType,
+  UserData,
+  fetchUserData,
+  signUp as emailSignUp,
+  signIn as emailSignIn,
+  signOut as authSignOut,
+  signInWithDiscord,
+  handleDiscordSignup,
+  processOAuthCallback,
+  refreshSession as refreshSessionUtil,
+  verifyEmailToken,
+} from "./auth";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -39,91 +32,17 @@ export default function AuthProvider({
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Function to fetch user data from the database
-  const fetchUserData = async (userId: string): Promise<UserData | null> => {
-    try {
-      // First, get user role
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role_name")
-        .eq("user_id", userId)
-        .single();
-
-      if (roleError && roleError.code !== "PGRST116") {
-        console.error("Error fetching user role:", roleError);
-      }
-
-      // Then get user details
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      if (userError) {
-        console.error("Error fetching user data:", userError);
-        return null;
-      }
-
-      return {
-        id: userId,
-        email: userData.email || "",
-        full_name: userData.full_name || "",
-        role: (roleData?.role_name as UserRole) || "user",
-        permissions: [
-          "access_dashboard",
-          "manage_own_licenses",
-          "update_profile",
-        ],
-      };
-    } catch (error) {
-      console.error("Error in fetchUserData:", error);
-      return null;
-    }
-  };
-
   // Function to refresh the session and user data
   const refreshSession = async () => {
     try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
+      const result = await refreshSessionUtil();
+      setUser(result.user);
+      setUserData(result.userData);
+      setIsAdmin(result.isAdmin);
 
-      if (session?.user) {
-        // Check if user still exists in the database
-        const { data: userExists, error: userCheckError } = await supabase
-          .from("users")
-          .select("id")
-          .eq("id", session.user.id)
-          .maybeSingle();
-
-        if (userCheckError) {
-          console.error("Error checking if user exists:", userCheckError);
-        }
-
-        if (!userExists) {
-          console.log("User no longer exists in database, signing out");
-          await signOut();
-          return;
-        }
-
-        setUser(session.user);
-        const data = await fetchUserData(session.user.id);
-        if (data) {
-          setUserData(data);
-          setIsAdmin(data.role === "admin");
-        } else {
-          // If we can't fetch user data, the user might have been deleted
-          console.log("Could not fetch user data, signing out");
-          await signOut();
-        }
-      } else {
-        // Clear user state if no session exists
-        setUser(null);
-        setUserData(null);
-        setIsAdmin(false);
+      if (!result.user) {
+        // If no user, might need to sign out
+        await signOut();
       }
     } catch (error) {
       console.error("Error refreshing session:", error);
@@ -209,65 +128,12 @@ export default function AuthProvider({
           );
 
           try {
-            // Extract user information from the session
-            const fullName =
-              session.user.user_metadata?.full_name ||
-              session.user.user_metadata?.name ||
-              session.user.user_metadata?.preferred_username ||
-              session.user.email?.split("@")[0] ||
-              "User";
-
-            const provider = session.user.app_metadata?.provider || "discord";
-
-            // Create user record
-            const { error: insertError } = await supabase.from("users").insert({
-              id: session.user.id,
-              email: session.user.email,
-              full_name: fullName,
-              token_identifier: session.user.id,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              avatar_url: session.user.user_metadata?.avatar_url,
-            });
-
-            if (insertError) {
-              console.error("Error creating user record:", insertError);
-              // Don't sign out here, as the role might still be created by a trigger
-            } else {
-              console.log("Successfully created user record for OAuth user");
-              // Wait a moment for any triggers to complete
-              await new Promise((resolve) => setTimeout(resolve, 500));
-            }
-
-            // Manually create user role since trigger might not fire
-            try {
-              console.log("Manually creating user role for OAuth user");
-              const { error: roleError } = await supabase
-                .from("user_roles")
-                .insert({
-                  user_id: session.user.id,
-                  role_name: "user",
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                });
-
-              if (roleError) {
-                console.error("Error manually creating user role:", roleError);
-              } else {
-                console.log("User role created successfully for OAuth user");
-              }
-            } catch (roleErr) {
-              console.error(
-                "Exception in manual user role creation for OAuth:",
-                roleErr,
-              );
-            }
+            await handleDiscordSignup(session.user.id, session.user);
+            // Refresh the session to get the latest data
+            await refreshSession();
           } catch (error) {
             console.error("Error creating user record for OAuth login:", error);
           }
-
-          // Refresh the session to get the latest data
-          await refreshSession();
         } else if (!userExists) {
           console.log("User no longer exists in database, signing out");
           await signOut();
@@ -331,22 +197,13 @@ export default function AuthProvider({
 
       try {
         // First verify the token
-        const { data: verificationData, error: verificationError } =
-          await supabase.auth.verifyOtp({
-            token_hash: token_hash || verification_token,
-            type: type || "email",
-          });
+        const { success, data: verificationData } = await verifyEmailToken(
+          token_hash || verification_token || "",
+          type || "email",
+        );
 
-        console.log("[Auth] Verification response:", {
-          verificationData,
-          error: verificationError,
-        });
-
-        if (verificationError) {
-          console.error(
-            "[Auth] Verification failed:",
-            verificationError.message,
-          );
+        if (!success) {
+          console.error("[Auth] Verification failed");
           toast({
             title: "Verification Failed",
             description:
@@ -491,125 +348,9 @@ export default function AuthProvider({
         if (code || provider) {
           console.log("OAuth callback detected", { code, provider });
 
-          // Let Supabase handle the OAuth exchange
-          const { data, error } = await supabase.auth.getSession();
-
-          if (error) {
-            console.error("Error getting session after OAuth:", error);
-            throw error;
-          }
-
-          if (data.session?.user) {
-            console.log("Session established after OAuth callback");
-            // Check if user exists in database and create if needed
-            const { data: userExists } = await supabase
-              .from("users")
-              .select("id")
-              .eq("id", data.session.user.id)
-              .maybeSingle();
-
-            if (!userExists) {
-              console.log("Creating user record for OAuth user");
-              try {
-                // Extract user information
-                const fullName =
-                  data.session.user.user_metadata?.full_name ||
-                  data.session.user.user_metadata?.name ||
-                  data.session.user.user_metadata?.preferred_username ||
-                  data.session.user.email?.split("@")[0] ||
-                  "User";
-
-                // Create user record
-                const { error: insertError } = await supabase
-                  .from("users")
-                  .insert({
-                    id: data.session.user.id,
-                    email: data.session.user.email,
-                    full_name: fullName,
-                    token_identifier: data.session.user.id,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    avatar_url: data.session.user.user_metadata?.avatar_url,
-                  });
-
-                if (insertError) {
-                  console.error("Error creating user record:", insertError);
-
-                  // Try again after a delay
-                  setTimeout(async () => {
-                    try {
-                      const { error: retryError } = await supabase
-                        .from("users")
-                        .insert({
-                          id: data.session.user.id,
-                          email: data.session.user.email,
-                          full_name: fullName,
-                          token_identifier: data.session.user.id,
-                          created_at: new Date().toISOString(),
-                          updated_at: new Date().toISOString(),
-                          avatar_url:
-                            data.session.user.user_metadata?.avatar_url,
-                        });
-
-                      if (retryError) {
-                        console.error(
-                          "Retry error creating user record:",
-                          retryError,
-                        );
-                      } else {
-                        console.log(
-                          "User record created successfully on retry",
-                        );
-                      }
-                    } catch (retryErr) {
-                      console.error(
-                        "Exception in retry user creation:",
-                        retryErr,
-                      );
-                    }
-                  }, 1000);
-                } else {
-                  console.log("User record created successfully");
-                }
-
-                // Manually create user role since trigger might not fire
-                try {
-                  console.log(
-                    "Manually creating user role for OAuth callback user",
-                  );
-                  const { error: roleError } = await supabase
-                    .from("user_roles")
-                    .insert({
-                      user_id: data.session.user.id,
-                      role_name: "user",
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                    });
-
-                  if (roleError) {
-                    console.error(
-                      "Error manually creating user role in OAuth callback:",
-                      roleError,
-                    );
-                  } else {
-                    console.log(
-                      "User role created successfully in OAuth callback",
-                    );
-                  }
-                } catch (roleErr) {
-                  console.error(
-                    "Exception in manual user role creation in OAuth callback:",
-                    roleErr,
-                  );
-                }
-
-                // Wait for triggers to complete
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-              } catch (createError) {
-                console.error("Error creating user record:", createError);
-              }
-            }
-
+          try {
+            // Process the OAuth callback
+            await processOAuthCallback();
             await refreshSession();
 
             // Handle email verification specifically
@@ -624,6 +365,9 @@ export default function AuthProvider({
             window.history.replaceState({}, document.title, "/");
             window.location.href = "/dashboard";
             return;
+          } catch (error) {
+            console.error("Error processing OAuth callback:", error);
+            throw error;
           }
         }
 
@@ -660,58 +404,10 @@ export default function AuthProvider({
                       data.session.user.email?.split("@")[0] ||
                       "User";
 
-                    const { error: insertError } = await supabase
-                      .from("users")
-                      .insert({
-                        id: data.session.user.id,
-                        email: data.session.user.email,
-                        full_name: fullName,
-                        token_identifier: data.session.user.id,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                      });
-
-                    if (insertError) {
-                      console.error(
-                        "Error creating user record during email verification:",
-                        insertError,
-                      );
-                    } else {
-                      console.log(
-                        "User record created successfully during email verification",
-                      );
-                    }
-
-                    // Manually create user role since trigger might not fire
-                    try {
-                      console.log(
-                        "Manually creating user role for email verification user",
-                      );
-                      const { error: roleError } = await supabase
-                        .from("user_roles")
-                        .insert({
-                          user_id: data.session.user.id,
-                          role_name: "user",
-                          created_at: new Date().toISOString(),
-                          updated_at: new Date().toISOString(),
-                        });
-
-                      if (roleError) {
-                        console.error(
-                          "Error manually creating user role in email verification:",
-                          roleError,
-                        );
-                      } else {
-                        console.log(
-                          "User role created successfully in email verification",
-                        );
-                      }
-                    } catch (roleErr) {
-                      console.error(
-                        "Exception in manual user role creation in email verification:",
-                        roleErr,
-                      );
-                    }
+                    await handleDiscordSignup(
+                      data.session.user.id,
+                      data.session.user,
+                    );
                   } catch (createError) {
                     console.error(
                       "Error in user creation during email verification:",
@@ -754,183 +450,14 @@ export default function AuthProvider({
     handleAuthCallback();
   }, []);
 
+  // Wrapper functions to maintain the same interface
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       setLoading(true);
       setError(null);
-
-      console.log("Starting signup process");
-
-      // Sign up with Supabase Auth - remove the type parameter
-      const { data: authData, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            role: "user",
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback?source=email`,
-        },
-      });
-
-      if (error) throw error;
-
-      console.log("Signup response:", {
-        userId: authData.user?.id,
-        session: !!authData.session,
-        confirmationSent: !authData.session && !!authData.user,
-      });
-
-      if (authData.user) {
-        try {
-          // First check if user already exists to avoid duplicate errors
-          const { data: existingUser, error: checkError } = await supabase
-            .from("users")
-            .select("id")
-            .eq("id", authData.user.id)
-            .maybeSingle();
-
-          if (checkError) {
-            console.error("Error checking if user exists:", checkError);
-          }
-
-          // Only create user if they don't already exist
-          if (!existingUser) {
-            console.log("Creating new user record in database");
-            // Create user record only - role will be created by trigger
-            const { error: insertError } = await supabase.from("users").insert({
-              id: authData.user.id,
-              email: email,
-              full_name: fullName,
-              token_identifier: authData.user.id,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-
-            if (insertError) {
-              console.error("Error creating user record:", insertError);
-
-              // Try a second time with a delay in case of race condition
-              setTimeout(async () => {
-                try {
-                  const { error: retryError } = await supabase
-                    .from("users")
-                    .insert({
-                      id: authData.user.id,
-                      email: email,
-                      full_name: fullName,
-                      token_identifier: authData.user.id,
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                    });
-
-                  if (retryError) {
-                    console.error(
-                      "Retry error creating user record:",
-                      retryError,
-                    );
-                  } else {
-                    console.log("User record created successfully on retry");
-                  }
-                } catch (retryErr) {
-                  console.error("Exception in retry user creation:", retryErr);
-                }
-              }, 1000);
-            } else {
-              console.log("User record created successfully");
-            }
-
-            // Manually create user role since trigger might not fire
-            try {
-              console.log("Manually creating user role for new user");
-              const { error: roleError } = await supabase
-                .from("user_roles")
-                .insert({
-                  user_id: authData.user.id,
-                  role_name: "user",
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                });
-
-              if (roleError) {
-                console.error("Error manually creating user role:", roleError);
-              } else {
-                console.log("User role created successfully");
-              }
-            } catch (roleErr) {
-              console.error("Exception in manual user role creation:", roleErr);
-            }
-          } else {
-            console.log(
-              "User already exists in database, checking for user role",
-            );
-
-            // Check if user role exists
-            const { data: existingRole, error: roleCheckError } = await supabase
-              .from("user_roles")
-              .select("id")
-              .eq("user_id", authData.user.id)
-              .maybeSingle();
-
-            if (roleCheckError) {
-              console.error(
-                "Error checking if user role exists:",
-                roleCheckError,
-              );
-            }
-
-            // Create user role if it doesn't exist
-            if (!existingRole) {
-              console.log("User role doesn't exist, creating it manually");
-              try {
-                const { error: roleError } = await supabase
-                  .from("user_roles")
-                  .insert({
-                    user_id: authData.user.id,
-                    role_name: "user",
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                  });
-
-                if (roleError) {
-                  console.error(
-                    "Error manually creating user role:",
-                    roleError,
-                  );
-                } else {
-                  console.log("User role created successfully");
-                }
-              } catch (roleErr) {
-                console.error(
-                  "Exception in manual user role creation:",
-                  roleErr,
-                );
-              }
-            } else {
-              console.log("User role already exists, skipping creation");
-            }
-          }
-
-          // Show success message with more details
-          toast({
-            title: "Verification Email Sent",
-            description:
-              "Please check your email (including spam folder) to verify your account. The link will redirect you back to complete the signup.",
-          });
-        } catch (error) {
-          console.error("Error in user creation:", error);
-          throw error;
-        }
-      }
+      await emailSignUp(email, password, fullName);
     } catch (error) {
       console.error("Sign up error:", error);
-      toast({
-        title: "Signup Failed",
-        description:
-          error instanceof Error ? error.message : "Failed to create account",
-        variant: "destructive",
-      });
       throw error instanceof Error ? error : new Error("Failed to sign up");
     } finally {
       setLoading(false);
@@ -942,18 +469,9 @@ export default function AuthProvider({
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
+      const data = await emailSignIn(email, password);
 
       if (data.user) {
-        if (!data.user.email_confirmed_at) {
-          throw new Error("Email not confirmed");
-        }
-
         const userData = await fetchUserData(data.user.id);
         if (userData) {
           setUserData(userData);
@@ -971,18 +489,13 @@ export default function AuthProvider({
   const signOut = async () => {
     try {
       setLoading(true);
-      console.log("Signing out...");
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await authSignOut();
 
       // Force clear user state
       setUser(null);
       setUserData(null);
       setIsAdmin(false);
       setError(null);
-
-      // Clear URL parameters
-      window.history.replaceState({}, document.title, window.location.pathname);
 
       // Force redirect to home page
       console.log("Sign out successful, redirecting to home");

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../supabase/auth";
 import { Loader2 } from "lucide-react";
 import { supabase } from "../../../supabase/supabase";
+import { processOAuthCallback } from "../../../supabase/auth";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 
@@ -58,56 +59,14 @@ export default function AuthCallback() {
               "AuthCallback: User doesn't exist in database, creating record...",
             );
 
-            // Create user record for OAuth login
+            // Use the modularized function to process OAuth login
             try {
-              // Extract user information from the session
-              const fullName =
-                session.user.user_metadata?.full_name ||
-                session.user.user_metadata?.name ||
-                session.user.user_metadata?.preferred_username ||
-                session.user.email?.split("@")[0] ||
-                "User";
-
-              // Create user record
-              const { error: insertError } = await supabase
-                .from("users")
-                .insert({
-                  id: session.user.id,
-                  email: session.user.email,
-                  full_name: fullName,
-                  token_identifier: session.user.id,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                  avatar_url: session.user.user_metadata?.avatar_url,
-                });
-
-              if (insertError) {
-                console.error(
-                  "AuthCallback: Error creating user record:",
-                  insertError,
-                );
-                throw insertError;
-              }
-
-              console.log("AuthCallback: Successfully created user record");
-
-              // Wait for any triggers to complete
-              await new Promise((resolve) => setTimeout(resolve, 1500));
-
-              // Verify the user was created
-              const { data: verifyUser } = await supabase
-                .from("users")
-                .select("id")
-                .eq("id", session.user.id)
-                .single();
-
-              if (!verifyUser) {
-                throw new Error("User record creation could not be verified");
-              }
-
-              console.log("AuthCallback: User record verified");
+              await processOAuthCallback();
+              console.log(
+                "AuthCallback: Successfully processed OAuth callback",
+              );
             } catch (error) {
-              console.error("AuthCallback: Error in user creation:", error);
+              console.error("AuthCallback: Error in OAuth processing:", error);
               throw error;
             }
           }

@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { useNavigate, useLocation } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
 import { LogIn } from "lucide-react";
-import { supabase } from "../../../supabase/supabase";
+import { signInWithDiscord } from "../../../supabase/auth";
 import { toast } from "@/components/ui/use-toast";
 import { Separator } from "@/components/ui/separator";
 
@@ -126,31 +126,13 @@ export default function LoginForm() {
     try {
       setIsLoading(true);
 
-      // Make sure we're using the correct redirect URL
-      // Use the current origin instead of hardcoded URL
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-      console.log("Using redirect URL:", redirectUrl);
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "discord",
-        options: {
-          redirectTo: redirectUrl,
-          scopes: "identify email", // Simplified scopes to reduce permissions requested
-        },
-      });
+      const { data, error } = await signInWithDiscord();
 
       if (error) {
         throw error;
       }
 
       if (data?.url) {
-        console.log("Redirecting to Discord OAuth:", data.url);
-        // Show a toast before redirecting
-        toast({
-          title: "Redirecting to Discord",
-          description: "You'll be redirected to Discord to complete sign in.",
-        });
-
         // Short delay to allow toast to show
         setTimeout(() => {
           window.location.href = data.url;

@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin, refreshSession } = useAuth();
   const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -29,6 +29,23 @@ const Navbar: React.FC = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Refresh session when component mounts to ensure auth state is current
+  useEffect(() => {
+    const checkSession = async () => {
+      // Check if we have a stored session flag
+      const hasStoredSession =
+        localStorage.getItem("auth_session_active") === "true";
+      console.log("Navbar: Checking stored session flag:", hasStoredSession);
+
+      if (hasStoredSession) {
+        console.log("Navbar: Session flag found, refreshing session");
+        await refreshSession();
+      }
+    };
+
+    checkSession();
+  }, [refreshSession]);
 
   // Function to scroll to element with navbar offset
   const scrollToElement = (elementId: string) => {
@@ -55,7 +72,17 @@ const Navbar: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center">
+          <Link
+            to="/"
+            className="flex items-center"
+            onClick={() => {
+              // Ensure session persistence when clicking the logo
+              if (user) {
+                localStorage.setItem("auth_session_active", "true");
+                console.log("Logo clicked: Reinforced session persistence");
+              }
+            }}
+          >
             <span className="text-xl font-bold text-white">
               Craftology <span className="text-green-400">Inc.</span>
             </span>
@@ -66,6 +93,13 @@ const Navbar: React.FC = () => {
             <Link
               to="/"
               className="text-white hover:text-green-400 transition-colors"
+              onClick={() => {
+                // Ensure session persistence when clicking home
+                if (user) {
+                  localStorage.setItem("auth_session_active", "true");
+                  console.log("Home clicked: Reinforced session persistence");
+                }
+              }}
             >
               Home
             </Link>
@@ -208,7 +242,14 @@ const Navbar: React.FC = () => {
             <Link
               to="/"
               className="block text-white hover:text-green-400 transition-colors py-2"
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                // Ensure session persistence when clicking home in mobile menu
+                if (user) {
+                  localStorage.setItem("auth_session_active", "true");
+                  console.log("Home clicked: Reinforced session persistence");
+                }
+              }}
             >
               Home
             </Link>

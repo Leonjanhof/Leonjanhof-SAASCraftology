@@ -59,11 +59,21 @@ export default function AuthProvider({
     const hasStoredSession =
       localStorage.getItem("auth_session_active") === "true";
     console.log("Checking for stored session:", hasStoredSession);
-  }, []);
+
+    // If we have a stored session flag but no user, try to refresh the session
+    if (hasStoredSession && !user) {
+      console.log("Found session flag but no user, refreshing session");
+      refreshSession();
+    }
+  }, [user]);
 
   // Initialize auth state
   useEffect(() => {
     async function initAuth() {
+      // Check for stored session flag first
+      const hasStoredSession =
+        localStorage.getItem("auth_session_active") === "true";
+      console.log("Auth init: Stored session flag:", hasStoredSession);
       try {
         setLoading(true);
         // Check for session and validate user exists
@@ -73,6 +83,8 @@ export default function AuthProvider({
 
         if (session?.user) {
           console.log("Session found during initialization, validating user");
+          // Ensure session flag is set if we have a valid session
+          localStorage.setItem("auth_session_active", "true");
           // Check if user still exists in the database
           const { data: userExists, error: userCheckError } = await supabase
             .from("users")

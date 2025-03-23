@@ -64,7 +64,7 @@ const UserRoleManager = () => {
         id: user.id,
         email: user.email || "",
         full_name: user.full_name || "",
-        role_name: user.user_roles.role_name,
+        role_name: user.user_roles[0]?.role_name || "user",
       }));
 
       setUsers(formattedUsers);

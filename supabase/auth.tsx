@@ -15,7 +15,7 @@ import {
   handleDiscordSignup,
   processOAuthCallback,
   verifyEmailToken,
-} from "./auth";
+} from "./auth/index";
 
 // Import refreshSession directly from the session module
 import { refreshSession as refreshSessionUtil } from "./auth/session";

@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label";
 import { useNavigate, useLocation } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
 import { LogIn } from "lucide-react";
-import { signInWithDiscord } from "../../../supabase/auth";
+import { supabase } from "../../../supabase/supabase";
+import { signInWithDiscord } from "../../../supabase/auth/signin";
 import { toast } from "@/components/ui/use-toast";
 import { Separator } from "@/components/ui/separator";
 

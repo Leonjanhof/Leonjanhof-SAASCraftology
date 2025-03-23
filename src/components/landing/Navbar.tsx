@@ -192,7 +192,7 @@ const Navbar: React.FC = () => {
                         to="/admin"
                         className="w-full text-green-400 hover:text-white group-hover:text-white"
                       >
-                        Admin Panel
+                        admin
                       </Link>
                     </DropdownMenuItem>
                   )}
@@ -320,7 +320,7 @@ const Navbar: React.FC = () => {
                       className="block text-white hover:text-green-400 transition-colors py-2"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      Admin Panel
+                      admin
                     </Link>
                   )}
                   <button

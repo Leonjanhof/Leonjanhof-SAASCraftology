@@ -92,7 +92,7 @@ const UserRoleManager = () => {
       // Only get user roles data
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
-        .select("id, user_roles.user_id, role_name");
+        .select("id, user_id, role_name");
 
       if (rolesError) {
         console.error("Error fetching user roles:", rolesError);

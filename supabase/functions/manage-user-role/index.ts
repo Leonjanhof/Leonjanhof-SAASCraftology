@@ -71,12 +71,23 @@ serve(async (req) => {
       throw new Error("Invalid role: must be 'user' or 'admin'");
     }
 
-    // Call the database function to set the user role
+    // First, get the user ID from the email
+    const { data: userData, error: userError } = await supabaseClient
+      .from("users")
+      .select("id")
+      .eq("email", targetUserEmail)
+      .single();
+
+    if (userError || !userData) {
+      throw new Error(`User with email ${targetUserEmail} not found`);
+    }
+
+    // Call the database function to create/update the user role
     const { data: result, error: fnError } = await supabaseClient.rpc(
-      "set_user_role",
+      "create_user_role",
       {
-        user_email: targetUserEmail,
-        new_role: newRole,
+        user_id_param: userData.id,
+        role_name_param: newRole,
       },
     );
 

@@ -615,9 +615,9 @@ export default function AuthProvider({
             // Handle email verification specifically
             if (source === "email") {
               console.log(
-                "Email verification detected, redirecting to signup with verified=true",
+                "Email verification detected, redirecting to login with confirmed=true",
               );
-              window.location.href = "/signup?verified=true";
+              window.location.href = "/login?confirmed=true";
               return;
             }
 
@@ -721,7 +721,7 @@ export default function AuthProvider({
                 }
 
                 await refreshSession();
-                window.location.href = "/signup?verified=true";
+                window.location.href = "/login?confirmed=true";
                 return;
               }
 

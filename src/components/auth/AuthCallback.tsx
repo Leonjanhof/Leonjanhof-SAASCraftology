@@ -116,11 +116,25 @@ export default function AuthCallback() {
         // Refresh the session to get the latest data
         await refreshSession();
 
-        // Navigate to dashboard if successful
-        console.log(
-          "AuthCallback: Authentication successful, redirecting to dashboard",
-        );
-        window.location.href = "/dashboard";
+        // Check if this is an email verification
+        const isEmailVerification =
+          window.location.search.includes("type=email") ||
+          window.location.search.includes("type=signup") ||
+          window.location.search.includes("confirmed=true");
+
+        if (isEmailVerification) {
+          // For email verification, redirect to login page
+          console.log(
+            "AuthCallback: Email verification detected, redirecting to login",
+          );
+          window.location.href = "/login?confirmed=true";
+        } else {
+          // For OAuth (Discord) or other flows, redirect to dashboard
+          console.log(
+            "AuthCallback: Authentication successful, redirecting to dashboard",
+          );
+          window.location.href = "/dashboard";
+        }
       } catch (error) {
         console.error("AuthCallback: Error in auth callback:", error);
 

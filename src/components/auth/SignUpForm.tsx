@@ -136,15 +136,15 @@ export default function SignUpForm() {
               Please check your email (including spam folder) and click the
               verification link.
             </p>
-            <p className="text-sm text-gray-500">
-              You can close this page - we'll redirect you after verification.
+            <p className="text-sm text-gray-500 font-medium">
+              You can close this page now and confirm your email.
             </p>
             <Button
               onClick={handleLoginRedirect}
               variant="outline"
               className="mt-4"
             >
-              Back to Login
+              Go to Login
             </Button>
           </CardContent>
         </Card>

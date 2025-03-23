@@ -180,15 +180,15 @@ export default function AdminDashboardStoryboard() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 items-stretch">
+              <Card className="flex flex-col">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center">
                     <Users className="h-5 w-5 mr-2 text-green-400" />
                     Users
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1 flex flex-col">
                   {isLoading ? (
                     <div className="flex items-center space-x-2">
                       <RefreshCw className="h-5 w-5 animate-spin text-green-400" />
@@ -199,16 +199,16 @@ export default function AdminDashboardStoryboard() {
                       <div className="text-3xl font-bold">
                         {userCount !== null ? userCount : "--"}
                       </div>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 mb-auto">
                         Total registered users
                       </p>
                     </>
                   )}
-                  <div className="mt-4">
+                  <div className="mt-4 flex">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full h-9"
+                      className="w-full h-8 text-xs"
                       onClick={() => setActiveTab("users")}
                     >
                       Manage Users
@@ -217,14 +217,14 @@ export default function AdminDashboardStoryboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="flex flex-col">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center">
                     <Database className="h-5 w-5 mr-2 text-green-400" />
                     Licenses
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1 flex flex-col">
                   {isLoading ? (
                     <div className="flex items-center space-x-2">
                       <RefreshCw className="h-5 w-5 animate-spin text-green-400" />
@@ -237,26 +237,28 @@ export default function AdminDashboardStoryboard() {
                           ? activeLicenseCount
                           : "--"}
                       </div>
-                      <p className="text-sm text-gray-500">
-                        Active licenses{" "}
-                        {licenseCount !== null &&
-                        activeLicenseCount !== null &&
-                        licenseCount > 0
-                          ? `(${Math.round((activeLicenseCount / licenseCount) * 100)}%)`
-                          : ""}
-                      </p>
-                      {licenseCount !== null && licenseCount > 0 && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          {licenseCount} total licenses
+                      <div className="mb-auto">
+                        <p className="text-sm text-gray-500">
+                          Active licenses{" "}
+                          {licenseCount !== null &&
+                          activeLicenseCount !== null &&
+                          licenseCount > 0
+                            ? `(${Math.round((activeLicenseCount / licenseCount) * 100)}%)`
+                            : ""}
                         </p>
-                      )}
+                        {licenseCount !== null && licenseCount > 0 && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {licenseCount} total licenses
+                          </p>
+                        )}
+                      </div>
                     </>
                   )}
-                  <div className="mt-4">
+                  <div className="mt-4 flex">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full h-9"
+                      className="w-full h-8 text-xs"
                       onClick={() => setActiveTab("licenses")}
                     >
                       Manage Licenses
@@ -265,14 +267,14 @@ export default function AdminDashboardStoryboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="flex flex-col">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center">
                     <Settings className="h-5 w-5 mr-2 text-green-400" />
                     System
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1 flex flex-col">
                   {isLoading || systemStatus === "checking" ? (
                     <div className="flex items-center space-x-2">
                       <RefreshCw className="h-5 w-5 animate-spin text-green-400" />
@@ -287,16 +289,16 @@ export default function AdminDashboardStoryboard() {
                           <XCircle className="h-12 w-12 text-red-500" />
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 text-center">
+                      <p className="text-sm text-gray-500 text-center mb-auto">
                         System status
                       </p>
                     </>
                   )}
-                  <div className="mt-4">
+                  <div className="mt-4 flex">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full h-9"
+                      className="w-full h-8 text-xs"
                       onClick={() => setActiveTab("settings")}
                     >
                       System Settings

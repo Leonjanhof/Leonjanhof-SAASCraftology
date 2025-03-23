@@ -31,6 +31,7 @@ import {
 
 interface UserWithRole {
   id: string;
+  user_id: string;
   email: string;
   full_name: string;
   role_name: string;
@@ -52,6 +53,7 @@ const UserRoleManager = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUserForUpdate, setSelectedUserForUpdate] = useState<
     string | null
@@ -61,7 +63,7 @@ const UserRoleManager = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     // Filter users based on search query
@@ -71,44 +73,45 @@ const UserRoleManager = () => {
         user.full_name.toLowerCase().includes(searchQuery.toLowerCase()),
     );
     setFilteredUsers(filtered);
-    setCurrentPage(1);
+    setDisplayedUsers(filtered);
   }, [searchQuery, users]);
 
   useEffect(() => {
-    setTotalPages(
-      Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE)),
-    );
-    const startIndex = (currentPage - 1) * USERS_PER_PAGE;
-    const endIndex = startIndex + USERS_PER_PAGE;
-    setDisplayedUsers(filteredUsers.slice(startIndex, endIndex));
-  }, [filteredUsers, currentPage]);
+    setTotalPages(Math.max(1, Math.ceil(totalCount / USERS_PER_PAGE)));
+  }, [totalCount]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("id, user_id, role_name, created_at, updated_at");
 
-      if (rolesError) throw rolesError;
+      // Call the edge function to get user roles data
+      const { data, error } = await supabase.functions.invoke(
+        "supabase-functions-get-user-roles-data",
+        {
+          body: {
+            page: currentPage,
+            pageSize: USERS_PER_PAGE,
+            searchQuery: searchQuery,
+          },
+        },
+      );
 
-      if (!rolesData) {
+      if (error) {
+        throw error;
+      }
+
+      if (!data || !data.data) {
         setUsers([]);
         setFilteredUsers([]);
+        setDisplayedUsers([]);
+        setTotalCount(0);
         return;
       }
 
-      const formattedUsers = rolesData.map((role) => ({
-        id: role.id,
-        email: role.user_id,
-        full_name: "N/A",
-        role_name: role.role_name || "user",
-        created_at: role.created_at,
-        updated_at: role.updated_at,
-      }));
-
-      setUsers(formattedUsers);
-      setFilteredUsers(formattedUsers);
+      setUsers(data.data);
+      setFilteredUsers(data.data);
+      setDisplayedUsers(data.data);
+      setTotalCount(data.totalCount || 0);
     } catch (error) {
       console.error("Error fetching user roles:", error);
       toast({
@@ -134,7 +137,7 @@ const UserRoleManager = () => {
     try {
       setIsSubmitting(true);
       const { data, error } = await supabase.functions.invoke(
-        "manage-user-role",
+        "supabase-functions-manage-user-role",
         {
           body: {
             targetUserEmail: targetEmail,
@@ -174,10 +177,15 @@ const UserRoleManager = () => {
       const userToUpdate = users.find((user) => user.id === userId);
       if (!userToUpdate) throw new Error("User not found");
 
-      const { error } = await supabase
-        .from("user_roles")
-        .update({ role_name: newRole })
-        .eq("id", userId);
+      const { data, error } = await supabase.functions.invoke(
+        "supabase-functions-manage-user-role",
+        {
+          body: {
+            userId: userToUpdate.user_id,
+            newRole: newRole,
+          },
+        },
+      );
 
       if (error) throw error;
 
@@ -187,10 +195,8 @@ const UserRoleManager = () => {
         variant: "default",
       });
 
-      const updatedUsers = users.map((user) =>
-        user.id === userId ? { ...user, role_name: newRole } : user,
-      );
-      setUsers(updatedUsers);
+      // Refresh the user list to get updated data
+      fetchUsers();
     } catch (error) {
       console.error("Error updating user role:", error);
       toast({
@@ -202,6 +208,11 @@ const UserRoleManager = () => {
       setIsUpdatingRole(false);
       setSelectedUserForUpdate(null);
     }
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchUsers();
   };
 
   const handleNextPage = () => {
@@ -285,9 +296,13 @@ const UserRoleManager = () => {
                     placeholder="Search by email or name"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                     className="pl-8 w-64"
                   />
                 </div>
+                <Button variant="outline" size="sm" onClick={handleSearch}>
+                  Search
+                </Button>
                 <Button variant="outline" size="sm" onClick={fetchUsers}>
                   <RefreshCw className="h-4 w-4 mr-1" />
                   Refresh
@@ -413,12 +428,8 @@ const UserRoleManager = () => {
                     {displayedUsers.length > 0
                       ? (currentPage - 1) * USERS_PER_PAGE + 1
                       : 0}{" "}
-                    to{" "}
-                    {Math.min(
-                      currentPage * USERS_PER_PAGE,
-                      filteredUsers.length,
-                    )}{" "}
-                    of {filteredUsers.length} users
+                    to {Math.min(currentPage * USERS_PER_PAGE, totalCount)} of{" "}
+                    {totalCount} users
                   </div>
                   <div className="flex space-x-2">
                     <Button

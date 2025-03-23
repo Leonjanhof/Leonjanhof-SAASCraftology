@@ -46,12 +46,15 @@ const Dashboard = () => {
         console.log("Dashboard loading timeout reached, forcing state update");
         setLoading(false);
         setIsLoadingSubscriptions(false);
-        toast({
-          title: "Loading timeout",
-          description:
-            "Dashboard data took too long to load. Some data might be missing.",
-          variant: "destructive",
-        });
+        // Only show toast in development environment
+        if (import.meta.env.DEV) {
+          toast({
+            title: "Loading timeout",
+            description:
+              "Dashboard data took too long to load. Some data might be missing.",
+            variant: "destructive",
+          });
+        }
       }
     }, 5000); // Reduced to 5 second timeout
 
@@ -67,18 +70,35 @@ const Dashboard = () => {
         }
 
         console.log("Initializing dashboard data for user:", user.id);
-        await fetchLicenses();
-        await fetchSubscriptions();
+
+        // Use Promise.allSettled to ensure both operations complete regardless of errors
+        const results = await Promise.allSettled([
+          fetchLicenses(),
+          fetchSubscriptions(),
+        ]);
+
+        // Log results but don't throw errors
+        results.forEach((result, index) => {
+          if (result.status === "rejected") {
+            console.error(
+              `Operation ${index === 0 ? "fetchLicenses" : "fetchSubscriptions"} failed:`,
+              result.reason,
+            );
+          }
+        });
+
         console.log("Dashboard data initialized successfully");
       } catch (error) {
         console.error("Error initializing dashboard:", error);
-        setLoading(false);
-        toast({
-          title: "Error",
-          description:
-            "Failed to load dashboard data. Please try refreshing the page.",
-          variant: "destructive",
-        });
+        // Only show toast in development environment
+        if (import.meta.env.DEV) {
+          toast({
+            title: "Error",
+            description:
+              "Failed to load dashboard data. Please try refreshing the page.",
+            variant: "destructive",
+          });
+        }
       } finally {
         // Ensure loading state is always updated
         setLoading(false);
@@ -104,7 +124,9 @@ const Dashboard = () => {
             { event: "*", schema: "public", table: "licenses" },
             () => {
               console.log("Licenses table changed, fetching updated data");
-              fetchLicenses();
+              fetchLicenses().catch((err) =>
+                console.error("Error refreshing licenses:", err),
+              );
             },
           )
           .on(
@@ -112,7 +134,9 @@ const Dashboard = () => {
             { event: "*", schema: "public", table: "subscriptions" },
             () => {
               console.log("Subscriptions table changed, fetching updated data");
-              fetchSubscriptions();
+              fetchSubscriptions().catch((err) =>
+                console.error("Error refreshing subscriptions:", err),
+              );
             },
           )
           .subscribe((status) => {
@@ -170,16 +194,31 @@ const Dashboard = () => {
     console.log("Fetching subscriptions for user", user.id);
     setIsLoadingSubscriptions(true);
     try {
-      const { data, error } = await supabase
+      // Add a timeout to prevent hanging requests
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Request timeout")), 5000);
+      });
+
+      const fetchPromise = supabase
         .from("subscriptions")
         .select(
           "id, stripe_id, status, price_id, amount, currency, metadata, cancel_at_period_end, current_period_end",
         )
         .eq("user_id", user.id);
 
+      // Race between the fetch and the timeout
+      const { data, error } = (await Promise.race([
+        fetchPromise,
+        timeoutPromise.then(() => ({
+          data: null,
+          error: new Error("Request timeout"),
+        })),
+      ])) as any;
+
       if (error) {
         console.error("Supabase error fetching subscriptions:", error);
-        throw error;
+        // Don't throw, just return empty object
+        return {};
       }
 
       // Create a map of product name to subscription
@@ -228,12 +267,15 @@ const Dashboard = () => {
       return subscriptionMap;
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
-      toast({
-        title: "Warning",
-        description:
-          "Could not load subscription information. Some features may be limited.",
-        variant: "destructive",
-      });
+      // Don't show toast for network errors in production
+      if (import.meta.env.DEV) {
+        toast({
+          title: "Warning",
+          description:
+            "Could not load subscription information. Some features may be limited.",
+          variant: "destructive",
+        });
+      }
       return {};
     } finally {
       setIsLoadingSubscriptions(false);

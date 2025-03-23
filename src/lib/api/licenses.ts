@@ -16,30 +16,50 @@ export async function getUserLicenses(): Promise<License[]> {
   try {
     console.log("Fetching user licenses...");
 
-    // Get the current user
+    // Add a timeout to prevent hanging requests
+    const timeoutPromise = new Promise<{ data: { user: null }; error: Error }>(
+      (_, reject) => {
+        setTimeout(() => reject(new Error("Request timeout")), 5000);
+      },
+    );
+
+    // Get the current user with timeout
+    const userPromise = supabase.auth.getUser();
+
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } = (await Promise.race([userPromise, timeoutPromise])) as any;
 
     if (userError) {
       console.error("Error getting current user:", userError);
-      throw new Error("Failed to authenticate user");
+      return []; // Return empty array instead of throwing
     }
 
     if (!user) {
       console.error("No authenticated user found");
-      throw new Error("No authenticated user found");
+      return []; // Return empty array instead of throwing
     }
 
     console.log("Fetching licenses for user ID:", user.id);
 
-    // Fetch licenses for the current user only
-    const { data, error } = await supabase
+    // Fetch licenses for the current user only with timeout
+    const licensePromise = supabase
       .from("licenses")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
+
+    const licenseTimeoutPromise = new Promise<{ data: null; error: Error }>(
+      (_, reject) => {
+        setTimeout(() => reject(new Error("License fetch timeout")), 5000);
+      },
+    );
+
+    const { data, error } = (await Promise.race([
+      licensePromise,
+      licenseTimeoutPromise,
+    ])) as any;
 
     if (error) {
       console.error("Error fetching licenses:", error);

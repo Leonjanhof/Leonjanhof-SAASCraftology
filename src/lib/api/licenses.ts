@@ -148,6 +148,9 @@ export async function cancelSubscription(
   subscriptionId: string,
 ): Promise<{ success: boolean; message?: string }> {
   try {
+    console.log(
+      `Calling cancel-subscription function for subscription: ${subscriptionId}`,
+    );
     const { data, error } = await supabase.functions.invoke(
       "cancel-subscription",
       {
@@ -163,7 +166,11 @@ export async function cancelSubscription(
       };
     }
 
-    return { success: true };
+    console.log("Subscription cancellation response:", data);
+    return {
+      success: true,
+      message: data?.message || "Subscription canceled successfully",
+    };
   } catch (e) {
     console.error("Exception in cancelSubscription:", e);
     return { success: false, message: "An unexpected error occurred" };

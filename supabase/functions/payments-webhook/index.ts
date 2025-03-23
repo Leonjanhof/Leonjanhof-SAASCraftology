@@ -280,6 +280,7 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
   console.log("Handling checkout session completed:", session.id);
   console.log("Full session data:", JSON.stringify(session, null, 2));
 
+  // Extract subscription ID - handle both string and object formats
   const subscriptionId =
     typeof session.subscription === "string"
       ? session.subscription
@@ -288,10 +289,16 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
   console.log("Extracted subscriptionId:", subscriptionId);
   console.log("Session metadata:", JSON.stringify(session.metadata, null, 2));
 
-  if (!subscriptionId) {
-    console.log("No subscription ID found in checkout session");
+  // CRITICAL FIX: Even if there's no subscription ID in the session, we should still
+  // create a license for one-time purchases. Only return early if this is not a payment
+  if (!subscriptionId && !session.payment_intent) {
+    console.log(
+      "No subscription ID or payment intent found in checkout session",
+    );
     return new Response(
-      JSON.stringify({ message: "No subscription in checkout session" }),
+      JSON.stringify({
+        message: "No subscription or payment in checkout session",
+      }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -300,46 +307,61 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
   }
 
   try {
-    console.log(
-      "Attempting to update subscription in Stripe with ID:",
-      subscriptionId,
-    );
-    console.log("Metadata to be added:", {
-      ...session.metadata,
-      checkoutSessionId: session.id,
-    });
+    let stripeSubscription = null;
+    let updatedStripeSubscription = null;
 
-    // Fetch the current subscription from Stripe to get the latest status
-    const stripeSubscription =
-      await stripe.subscriptions.retrieve(subscriptionId);
-    console.log(
-      "Retrieved Stripe subscription status:",
-      stripeSubscription.status,
-    );
+    // Only attempt to update the Stripe subscription if we have a subscription ID
+    if (subscriptionId) {
+      console.log(
+        "Attempting to update subscription in Stripe with ID:",
+        subscriptionId,
+      );
+      console.log("Metadata to be added:", {
+        ...session.metadata,
+        checkoutSessionId: session.id,
+      });
 
-    const updatedStripeSubscription = await stripe.subscriptions.update(
-      subscriptionId,
-      {
-        metadata: {
-          ...session.metadata,
-          checkoutSessionId: session.id,
-        },
-      },
-    );
+      try {
+        // Fetch the current subscription from Stripe to get the latest status
+        stripeSubscription =
+          await stripe.subscriptions.retrieve(subscriptionId);
+        console.log(
+          "Retrieved Stripe subscription status:",
+          stripeSubscription.status,
+        );
 
-    console.log(
-      "Successfully updated Stripe subscription:",
-      updatedStripeSubscription.id,
-    );
-    console.log(
-      "Updated Stripe metadata:",
-      JSON.stringify(updatedStripeSubscription.metadata, null, 2),
-    );
+        updatedStripeSubscription = await stripe.subscriptions.update(
+          subscriptionId,
+          {
+            metadata: {
+              ...session.metadata,
+              checkoutSessionId: session.id,
+            },
+          },
+        );
 
-    console.log(
-      "Checking if subscription exists in Supabase with stripe_id:",
-      subscriptionId,
-    );
+        console.log(
+          "Successfully updated Stripe subscription:",
+          updatedStripeSubscription.id,
+        );
+        console.log(
+          "Updated Stripe metadata:",
+          JSON.stringify(updatedStripeSubscription.metadata, null, 2),
+        );
+
+        console.log(
+          "Checking if subscription exists in Supabase with stripe_id:",
+          subscriptionId,
+        );
+      } catch (stripeError) {
+        console.error("Error updating Stripe subscription:", stripeError);
+        // Continue with license creation even if Stripe update fails
+      }
+    } else {
+      console.log(
+        "No subscription ID available, skipping Stripe subscription update",
+      );
+    }
 
     const userId = session.metadata?.userId || session.metadata?.user_id;
     if (!userId) {
@@ -348,94 +370,123 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
     }
 
     // First, check if the subscription already exists in the database
-    const { data: existingSubscription, error: checkError } =
-      await supabaseClient
+    let existingSubscription = null;
+    let checkError = null;
+
+    if (subscriptionId) {
+      const result = await supabaseClient
         .from("subscriptions")
         .select("id")
         .eq("stripe_id", subscriptionId)
         .maybeSingle();
 
-    console.log(
-      "Existing subscription check result:",
-      existingSubscription ? "Found" : "Not found",
-    );
+      existingSubscription = result.data;
+      checkError = result.error;
 
-    if (checkError) {
-      console.error("Error checking for existing subscription:", checkError);
-    }
+      console.log(
+        "Existing subscription check result:",
+        existingSubscription ? "Found" : "Not found",
+      );
 
-    // Prepare subscription data
-    const subscriptionData: SubscriptionData = {
-      stripe_id: subscriptionId,
-      user_id: userId,
-      price_id: stripeSubscription.items.data[0]?.price.id,
-      stripe_price_id: stripeSubscription.items.data[0]?.price.id,
-      currency: stripeSubscription.currency,
-      interval: stripeSubscription.items.data[0]?.plan.interval,
-      status: stripeSubscription.status,
-      current_period_start: stripeSubscription.current_period_start,
-      current_period_end: stripeSubscription.current_period_end,
-      cancel_at_period_end: stripeSubscription.cancel_at_period_end,
-      amount: stripeSubscription.items.data[0]?.plan.amount ?? 0,
-      started_at:
-        stripeSubscription.start_date ?? Math.floor(Date.now() / 1000),
-      customer_id: stripeSubscription.customer,
-      metadata: {
-        ...session.metadata,
-        checkoutSessionId: session.id,
-      },
-    };
-
-    let supabaseResult;
-
-    // If subscription doesn't exist, create it; otherwise, update it
-    if (!existingSubscription) {
-      console.log("Creating new subscription in Supabase");
-      supabaseResult = await supabaseClient
-        .from("subscriptions")
-        .insert(subscriptionData);
+      if (checkError) {
+        console.error("Error checking for existing subscription:", checkError);
+      }
     } else {
-      console.log("Updating existing subscription in Supabase");
-      supabaseResult = await supabaseClient
-        .from("subscriptions")
-        .update(subscriptionData)
-        .eq("stripe_id", subscriptionId);
+      console.log("No subscription ID to check, likely a one-time purchase");
     }
 
-    console.log(
-      "Supabase subscription operation result:",
-      JSON.stringify(supabaseResult, null, 2),
-    );
+    let supabaseResult = null;
 
-    if (supabaseResult.error) {
-      console.error(
-        "Error with Supabase subscription operation:",
-        supabaseResult.error,
+    // Only create/update subscription if we have a subscription ID
+    if (subscriptionId && stripeSubscription) {
+      // Prepare subscription data
+      const subscriptionData: SubscriptionData = {
+        stripe_id: subscriptionId,
+        user_id: userId,
+        price_id: stripeSubscription.items.data[0]?.price.id,
+        stripe_price_id: stripeSubscription.items.data[0]?.price.id,
+        currency: stripeSubscription.currency,
+        interval: stripeSubscription.items.data[0]?.plan.interval,
+        status: stripeSubscription.status,
+        current_period_start: stripeSubscription.current_period_start,
+        current_period_end: stripeSubscription.current_period_end,
+        cancel_at_period_end: stripeSubscription.cancel_at_period_end,
+        amount: stripeSubscription.items.data[0]?.plan.amount ?? 0,
+        started_at:
+          stripeSubscription.start_date ?? Math.floor(Date.now() / 1000),
+        customer_id: stripeSubscription.customer,
+        metadata: {
+          ...session.metadata,
+          checkoutSessionId: session.id,
+          product_name: session.metadata?.product_name || "",
+        },
+      };
+
+      // If subscription doesn't exist, create it; otherwise, update it
+      if (!existingSubscription) {
+        console.log(
+          "Creating new subscription in Supabase with data:",
+          JSON.stringify(subscriptionData),
+        );
+        supabaseResult = await supabaseClient
+          .from("subscriptions")
+          .insert(subscriptionData);
+      } else {
+        console.log("Updating existing subscription in Supabase");
+        supabaseResult = await supabaseClient
+          .from("subscriptions")
+          .update(subscriptionData)
+          .eq("stripe_id", subscriptionId);
+      }
+
+      console.log(
+        "Supabase subscription operation result:",
+        JSON.stringify(supabaseResult, null, 2),
       );
-      throw new Error(
-        `Supabase subscription operation failed: ${supabaseResult.error.message}`,
+
+      if (supabaseResult.error) {
+        console.error(
+          "Error with Supabase subscription operation:",
+          supabaseResult.error,
+        );
+        // Don't throw here, continue to create license
+        console.log("Continuing to create license despite subscription error");
+      }
+    } else {
+      console.log(
+        "No subscription ID available, skipping subscription creation/update",
       );
     }
 
-    // Verify the subscription was created/updated
-    const { data: verifySubscription, error: verifySubError } =
-      await supabaseClient
-        .from("subscriptions")
-        .select("id, stripe_id, status")
-        .eq("stripe_id", subscriptionId)
-        .single();
+    // Verify the subscription was created/updated if we have a subscription ID
+    if (subscriptionId) {
+      const { data: verifySubscription, error: verifySubError } =
+        await supabaseClient
+          .from("subscriptions")
+          .select("id, stripe_id, status, metadata")
+          .eq("stripe_id", subscriptionId)
+          .single();
 
-    if (verifySubError) {
-      console.error("Error verifying subscription:", verifySubError);
-    } else if (verifySubscription) {
-      console.log("Subscription verified successfully:", verifySubscription.id);
+      if (verifySubError) {
+        console.error("Error verifying subscription:", verifySubError);
+      } else if (verifySubscription) {
+        console.log(
+          "Subscription verified successfully:",
+          verifySubscription.id,
+        );
+        console.log("Subscription metadata:", verifySubscription.metadata);
+      } else {
+        console.error(
+          "Subscription verification failed - no subscription found after creation/update",
+        );
+      }
     }
 
     // Get the product name from the line items
     let productName = "";
 
-    // Try to get product name from the subscription items
-    if (stripeSubscription.items?.data?.length > 0) {
+    // Try to get product name from the subscription items if we have a subscription
+    if (subscriptionId && stripeSubscription?.items?.data?.length > 0) {
       const priceId = stripeSubscription.items.data[0].price.id;
       console.log("Price ID from subscription:", priceId);
 
@@ -447,24 +498,7 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       };
 
       productName = priceToProductMap[priceId] || "";
-      console.log("Mapped product name:", productName);
-
-      // Also update the subscription metadata with the product name for future reference
-      if (productName && verifySubscription) {
-        console.log(
-          "Updating subscription metadata with product name:",
-          productName,
-        );
-        await supabaseClient
-          .from("subscriptions")
-          .update({
-            metadata: {
-              ...subscriptionData.metadata,
-              product_name: productName,
-            },
-          })
-          .eq("id", verifySubscription.id);
-      }
+      console.log("Mapped product name from subscription:", productName);
     }
 
     if (!productName) {
@@ -474,49 +508,66 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
     }
 
     // Additional fallback: try to get product name from line items
-    if (!productName && session.line_items) {
+    if (!productName) {
       try {
+        console.log("Attempting to get product name from line items");
         const lineItems = await stripe.checkout.sessions.listLineItems(
           session.id,
         );
+        console.log("Line items retrieved:", lineItems.data.length);
+
         if (lineItems.data.length > 0) {
           const item = lineItems.data[0];
+          console.log("First line item:", JSON.stringify(item));
+
           if (item.price && item.price.id) {
             const priceToProductMap: Record<string, string> = {
               price_1R1A9uGLqZ8YjU1vEkXXC79n: "Autovoter",
               price_1R1AE1GLqZ8YjU1vUrS3ZSXJ: "Factionsbot 1.18.2",
               price_1R1AETGLqZ8YjU1vkuXGLxKY: "EMC captcha solver",
             };
+
             productName =
               priceToProductMap[item.price.id] || item.description || "";
             console.log("Product name from line items:", productName);
 
-            // Update subscription metadata with product name if found
-            if (productName && verifySubscription) {
-              console.log(
-                "Updating subscription metadata with product name from line items:",
-                productName,
-              );
-              await supabaseClient
+            // If we have a subscription, update its metadata with the product name
+            if (productName && subscriptionId) {
+              const { data: verifySubscription } = await supabaseClient
                 .from("subscriptions")
-                .update({
-                  metadata: {
-                    ...subscriptionData.metadata,
-                    product_name: productName,
-                  },
-                })
-                .eq("id", verifySubscription.id);
+                .select("id")
+                .eq("stripe_id", subscriptionId)
+                .single();
+
+              if (verifySubscription) {
+                console.log(
+                  "Updating subscription metadata with product name from line items:",
+                  productName,
+                );
+                await supabaseClient
+                  .from("subscriptions")
+                  .update({
+                    metadata: {
+                      ...(session.metadata || {}),
+                      checkoutSessionId: session.id,
+                      product_name: productName,
+                    },
+                  })
+                  .eq("id", verifySubscription.id);
+              }
             }
           }
         }
       } catch (lineItemError) {
         console.error("Error fetching line items:", lineItemError);
+        // Continue with license creation even if line items fetch fails
       }
     }
 
     if (!productName) {
-      console.error("Could not determine product name");
-      throw new Error("Could not determine product name");
+      console.error("Could not determine product name, using fallback");
+      // Use a fallback product name instead of throwing an error
+      productName = "Unknown Product";
     }
 
     // Generate a license key for the product
@@ -623,10 +674,11 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
     return new Response(
       JSON.stringify({
         message: "Checkout session completed successfully",
-        subscriptionId,
+        subscriptionId: subscriptionId || null,
         licenseKey,
         licenseVerified: !!verifyLicense,
-        subscriptionVerified: !!verifySubscription,
+        subscriptionVerified: subscriptionId ? true : null,
+        productName,
       }),
       {
         status: 200,

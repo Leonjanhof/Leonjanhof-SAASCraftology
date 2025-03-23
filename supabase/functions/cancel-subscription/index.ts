@@ -33,6 +33,8 @@ serve(async (req) => {
       throw new Error("Subscription ID is required");
     }
 
+    console.log(`Attempting to cancel subscription: ${subscription_id}`);
+
     // Validate subscription_id format
     if (
       typeof subscription_id !== "string" ||
@@ -49,43 +51,108 @@ serve(async (req) => {
         .eq("stripe_id", subscription_id)
         .single();
 
-    if (subscriptionError || !subscription) {
-      throw new Error("Subscription not found");
+    if (subscriptionError) {
+      console.error("Error fetching subscription:", subscriptionError);
+      throw new Error(`Subscription not found: ${subscriptionError.message}`);
     }
 
-    // Cancel the subscription at period end
-    const updatedSubscription = await stripe.subscriptions.update(
-      subscription_id,
-      { cancel_at_period_end: true },
-    );
+    if (!subscription) {
+      console.error("Subscription not found in database");
+      throw new Error("Subscription not found in database");
+    }
 
-    // Update the subscription in the database
-    await supabaseClient
-      .from("subscriptions")
-      .update({
-        cancel_at_period_end: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("stripe_id", subscription_id);
+    try {
+      // Cancel the subscription at period end
+      console.log(`Canceling subscription in Stripe: ${subscription_id}`);
+      const updatedSubscription = await stripe.subscriptions.update(
+        subscription_id,
+        { cancel_at_period_end: true },
+      );
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message:
-          "Subscription will be cancelled at the end of the billing period",
-        data: {
-          current_period_end: updatedSubscription.current_period_end,
+      console.log(
+        `Stripe subscription updated: ${updatedSubscription.id}, status: ${updatedSubscription.status}`,
+      );
+
+      // Update the subscription in the database
+      const { data: updateResult, error: updateError } = await supabaseClient
+        .from("subscriptions")
+        .update({
+          cancel_at_period_end: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("stripe_id", subscription_id);
+
+      if (updateError) {
+        console.error("Error updating subscription in database:", updateError);
+      } else {
+        console.log("Subscription updated in database successfully");
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message:
+            "Subscription will be cancelled at the end of the billing period",
+          data: {
+            current_period_end: updatedSubscription.current_period_end,
+          },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+      );
+    } catch (stripeError) {
+      console.error("Error canceling subscription in Stripe:", stripeError);
+
+      // If Stripe error is because subscription doesn't exist, mark it as canceled in our database
+      if (stripeError.code === "resource_missing") {
+        console.log(
+          "Subscription not found in Stripe, marking as canceled in database",
+        );
+
+        const { error: updateError } = await supabaseClient
+          .from("subscriptions")
+          .update({
+            cancel_at_period_end: true,
+            status: "canceled",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_id", subscription_id);
+
+        if (updateError) {
+          console.error(
+            "Error marking subscription as canceled in database:",
+            updateError,
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Subscription marked as canceled in database",
+            data: {
+              subscription_id,
+              cancel_at_period_end: true,
+            },
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          },
+        );
+      }
+
+      throw stripeError;
+    }
   } catch (error) {
     console.error("Error cancelling subscription:", error);
     return new Response(
-      JSON.stringify({ success: false, message: error.message }),
+      JSON.stringify({
+        success: false,
+        message: error.message || "An unexpected error occurred",
+        error: error.code || error.type || "unknown_error",
+      }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

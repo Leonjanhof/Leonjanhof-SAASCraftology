@@ -88,11 +88,11 @@ export default function AuthCallback() {
           );
           window.location.href = "/login?confirmed=true";
         } else {
-          // For OAuth (Discord) or other flows, redirect to dashboard
+          // For OAuth (Discord) or other flows, redirect to landing page
           console.log(
-            "AuthCallback: Authentication successful, redirecting to dashboard",
+            "AuthCallback: Authentication successful, redirecting to landing page",
           );
-          window.location.href = "/dashboard";
+          window.location.href = "/";
         }
       } catch (error) {
         console.error("AuthCallback: Error in auth callback:", error);

@@ -66,9 +66,7 @@ const UserRoleManager = () => {
     if (searchQuery.trim() === "") {
       setFilteredUsers(users);
     } else {
-      const filtered = users.filter((user) =>
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
+      const filtered = users.filter((user) => user.email.includes(searchQuery));
       setFilteredUsers(filtered);
     }
     // Reset to first page when search changes
@@ -91,54 +89,37 @@ const UserRoleManager = () => {
     try {
       setLoading(true);
 
-      // First, get all users
-      const { data: usersData, error: usersError } = await supabase
-        .from("users")
-        .select("id, email, full_name")
-        .order("email");
-
-      if (usersError) {
-        console.error("Error fetching users:", usersError);
-        throw usersError;
-      }
-
-      if (!usersData || usersData.length === 0) {
-        setUsers([]);
-        setFilteredUsers([]);
-        return;
-      }
-
-      // Then, get all user roles
+      // Only get user roles data
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
-        .select("user_id, role_name");
+        .select("id, user_id, role_name");
 
       if (rolesError) {
         console.error("Error fetching user roles:", rolesError);
         throw rolesError;
       }
 
-      // Create a map of user_id to role_name
-      const userRolesMap = {};
-      rolesData?.forEach((role) => {
-        userRolesMap[role.user_id] = role.role_name;
-      });
+      if (!rolesData || rolesData.length === 0) {
+        setUsers([]);
+        setFilteredUsers([]);
+        return;
+      }
 
-      // Combine the data
-      const formattedUsers = usersData.map((user) => ({
-        id: user.id,
-        email: user.email || "",
-        full_name: user.full_name || "",
-        role_name: userRolesMap[user.id] || "user",
+      // Format the data with just the user_id and role
+      const formattedUsers = rolesData.map((role) => ({
+        id: role.id,
+        email: role.user_id, // Using user_id as the identifier
+        full_name: "", // Not showing full name
+        role_name: role.role_name || "user",
       }));
 
       setUsers(formattedUsers);
       setFilteredUsers(formattedUsers);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error("Error fetching user roles:", error);
       toast({
         title: "Error",
-        description: "Failed to load users. Please try again.",
+        description: "Failed to load user roles. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -197,21 +178,18 @@ const UserRoleManager = () => {
       setIsUpdatingRole(true);
       setSelectedUserForUpdate(userId);
 
-      // Find user email by ID
+      // Find user by ID
       const userToUpdate = users.find((user) => user.id === userId);
       if (!userToUpdate) {
         throw new Error("User not found");
       }
 
-      const { data, error } = await supabase.functions.invoke(
-        "manage-user-role",
-        {
-          body: {
-            targetUserEmail: userToUpdate.email,
-            newRole: newRole,
-          },
-        },
-      );
+      // Direct update to the user_roles table
+      const { data, error } = await supabase
+        .from("user_roles")
+        .update({ role_name: newRole })
+        .eq("id", userId)
+        .select();
 
       if (error) throw error;
 
@@ -326,7 +304,7 @@ const UserRoleManager = () => {
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search by email"
+                    placeholder="Search by user ID"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-8 w-64"
@@ -347,8 +325,8 @@ const UserRoleManager = () => {
               <div className="text-center py-8 border rounded-md bg-gray-50">
                 <p className="text-gray-500">
                   {searchQuery
-                    ? "No users found matching your search."
-                    : "No users found in the system."}
+                    ? "No user roles found matching your search."
+                    : "No user roles found in the system."}
                 </p>
               </div>
             ) : (
@@ -360,13 +338,7 @@ const UserRoleManager = () => {
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Name
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Email
+                        User ID
                       </th>
                       <th
                         scope="col"
@@ -385,11 +357,6 @@ const UserRoleManager = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {displayedUsers.map((user) => (
                       <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {user.full_name || "N/A"}
-                          </div>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">
                             {user.email}

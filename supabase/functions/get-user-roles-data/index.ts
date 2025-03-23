@@ -14,12 +14,6 @@ serve(async (req) => {
   }
 
   try {
-    // Create a Supabase client with the service role key for admin access
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
-
     // Get the request body if any
     let requestData = {};
     try {
@@ -37,23 +31,46 @@ serve(async (req) => {
       throw new Error("Missing Authorization header");
     }
 
+    // Create a Supabase client with the anon key first to verify the JWT token
+    const anonClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    );
+
     const token = authHeader.replace("Bearer ", "");
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser(token);
+    } = await anonClient.auth.getUser(token);
 
     if (userError || !user) {
-      throw new Error("Unauthorized");
+      console.error("User authentication error:", userError);
+      throw new Error("Unauthorized: Invalid token");
     }
 
-    // Check if the user is an admin
+    console.log("Authenticated user ID:", user.id);
+
+    // Now create a client with the service role key for admin operations
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+
+    // Check if the user is an admin using the RPC function
     const { data: isAdmin, error: adminCheckError } = await supabaseClient.rpc(
       "is_admin",
       { user_id: user.id },
     );
 
-    if (adminCheckError || !isAdmin) {
+    console.log("Admin check result:", isAdmin, "Error:", adminCheckError);
+
+    if (adminCheckError) {
+      console.error("Admin check error:", adminCheckError);
+      throw new Error("Error checking admin status");
+    }
+
+    if (!isAdmin) {
+      console.log("User is not an admin:", user.id);
       throw new Error("Unauthorized: Admin access required");
     }
 
@@ -62,6 +79,12 @@ serve(async (req) => {
     const page = requestData.page || 1;
     const pageSize = requestData.pageSize || 10;
     const offset = (page - 1) * pageSize;
+
+    console.log("Fetching user roles with pagination:", {
+      page,
+      pageSize,
+      offset,
+    });
 
     // Get user roles with user information
     const {
@@ -85,8 +108,11 @@ serve(async (req) => {
       .range(offset, offset + pageSize - 1);
 
     if (rolesError) {
+      console.error("Error fetching user roles:", rolesError);
       throw rolesError;
     }
+
+    console.log(`Found ${userRoles.length} user roles`);
 
     // Format the response data
     const formattedUserRoles = userRoles.map((role) => ({
@@ -122,6 +148,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status:
           error.message === "Unauthorized" ||
+          error.message === "Unauthorized: Invalid token" ||
           error.message === "Unauthorized: Admin access required"
             ? 403
             : 500,

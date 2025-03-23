@@ -88,11 +88,17 @@ export default function AuthCallback() {
           );
           window.location.href = "/login?confirmed=true";
         } else {
-          // For OAuth (Discord) or other flows, redirect to landing page
+          // For OAuth (Discord) or other flows, just clean up the URL and stay on the current page
           console.log(
-            "AuthCallback: Authentication successful, redirecting to landing page",
+            "AuthCallback: Authentication successful, cleaning up URL and staying on current page",
           );
-          window.location.href = "/";
+          // Clean up the URL by removing the hash and query parameters
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
+          // No redirect - user stays on the current page
         }
       } catch (error) {
         console.error("AuthCallback: Error in auth callback:", error);

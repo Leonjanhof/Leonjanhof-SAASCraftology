@@ -154,10 +154,10 @@ export default function AuthProvider({
           setUserData(data);
           setIsAdmin(data.role === "admin");
 
-          // If this is a new sign-in and we have user data, redirect to dashboard
+          // Log the sign-in event but don't redirect
           if (event === "SIGNED_IN") {
-            console.log("New sign-in detected, redirecting to dashboard");
-            window.location.href = "/dashboard";
+            console.log("New sign-in detected, session updated");
+            // No redirect - let the user stay on the current page
           }
         } else {
           // If we can't fetch user data, the user might have been deleted

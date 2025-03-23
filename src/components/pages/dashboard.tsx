@@ -59,7 +59,7 @@ const Dashboard = () => {
           });
         }
       }
-    }, 1000); // Reduced to 1 second timeout for faster feedback
+    }, 5000); // Increased to 5 second timeout to allow data to load properly
 
     const initDashboard = async () => {
       try {
@@ -194,9 +194,9 @@ const Dashboard = () => {
     console.log("Fetching subscriptions for user", user.id);
     setIsLoadingSubscriptions(true);
     try {
-      // Add a timeout to prevent hanging requests
+      // Increase timeout to allow for subscription data to load
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Request timeout")), 1000); // Reduced timeout to 1 second
+        setTimeout(() => reject(new Error("Request timeout")), 5000); // Increased timeout to 5 seconds
       });
 
       const fetchPromise = supabase
@@ -296,7 +296,9 @@ const Dashboard = () => {
         "subscriptions mapped",
       );
       setSubscriptions(subscriptionMap);
-      setIsLoadingSubscriptions(false); // Set loading to false as soon as we have data
+      // Force a re-render after mapping subscriptions
+      setSubscriptions({ ...subscriptionMap });
+      setIsLoadingSubscriptions(false);
       return subscriptionMap;
     } catch (error) {
       console.error("Error fetching subscriptions:", error);

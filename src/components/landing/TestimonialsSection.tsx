@@ -75,12 +75,15 @@ const TestimonialsSection: React.FC = () => {
           .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "reviews" },
-            () => {
-              console.log("Reviews table changed, fetching updated data");
+            (payload) => {
+              console.log("Reviews table changed, payload:", payload);
+              console.log("Fetching updated reviews data");
               fetchReviews();
             },
           )
-          .subscribe();
+          .subscribe((status) => {
+            console.log("Reviews realtime subscription status:", status);
+          });
       } catch (error) {
         console.error("Error setting up realtime subscription:", error);
       }
@@ -112,8 +115,44 @@ const TestimonialsSection: React.FC = () => {
             rating: review.rating,
           }));
 
+          console.log(
+            "Setting testimonials with user reviews:",
+            userReviews.length,
+          );
           // Only use user reviews, no default testimonials
-          setTestimonials(userReviews);
+          setTestimonials([...userReviews]); // Use spread operator to ensure state update
+        } else {
+          console.log("No reviews found, setting default testimonials");
+          // Set default testimonials if no reviews found
+          setTestimonials([
+            {
+              content:
+                "The automation tools have saved me countless hours of manual work. Highly recommended!",
+              author: "Alex Johnson",
+              role: "Developer",
+              company: "Autovoter",
+              avatarSeed: "alex",
+              rating: 5,
+            },
+            {
+              content:
+                "Excellent product with great support. The factionsbot has been a game-changer for our team.",
+              author: "Sarah Miller",
+              role: "Team Lead",
+              company: "Factionsbot 1.18.2",
+              avatarSeed: "sarah",
+              rating: 5,
+            },
+            {
+              content:
+                "The captcha solver works flawlessly. It's been incredibly reliable and accurate.",
+              author: "Michael Chen",
+              role: "Software Engineer",
+              company: "EMC captcha solver",
+              avatarSeed: "michael",
+              rating: 5,
+            },
+          ]);
         }
       } catch (error) {
         console.error("Error in fetchReviews:", error);
@@ -147,17 +186,23 @@ const TestimonialsSection: React.FC = () => {
             rating: 5,
           },
         ]);
-        // Don't try to set up realtime subscription if the initial fetch failed
-        return;
+        // Still try to set up realtime subscription even if initial fetch failed
+        setupRealtimeSubscription();
       }
     };
 
+    // Fetch reviews immediately
     fetchReviews();
-    try {
-      setupRealtimeSubscription();
-    } catch (error) {
-      console.error("Failed to setup realtime subscription:", error);
-    }
+
+    // Set up realtime subscription with a slight delay to ensure it's set up properly
+    setTimeout(() => {
+      try {
+        console.log("Setting up realtime subscription for reviews");
+        setupRealtimeSubscription();
+      } catch (error) {
+        console.error("Failed to setup realtime subscription:", error);
+      }
+    }, 1000);
 
     // Cleanup subscription when component unmounts
     return () => {

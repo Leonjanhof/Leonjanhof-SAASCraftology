@@ -31,7 +31,7 @@ export default function Success() {
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             >
-              <XCircle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+              <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
             </motion.div>
             <motion.h1
               initial={{ opacity: 0 }}
@@ -56,7 +56,7 @@ export default function Success() {
             >
               <a
                 href="/"
-                className="inline-block bg-amber-500 text-white px-6 py-3 rounded-lg font-semibold hover:text-amber-500 relative overflow-hidden group"
+                className="inline-block bg-red-500 text-white px-6 py-3 rounded-lg font-semibold hover:text-red-500 relative overflow-hidden group"
               >
                 <span className="relative z-10 transition-colors duration-300">
                   Return to home

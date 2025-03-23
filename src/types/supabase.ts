@@ -278,6 +278,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_missing_user_roles: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       custom_access_token_hook: {
         Args: {
           event: Json

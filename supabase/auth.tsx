@@ -238,6 +238,30 @@ export default function AuthProvider({
               // Wait a moment for any triggers to complete
               await new Promise((resolve) => setTimeout(resolve, 500));
             }
+
+            // Manually create user role since trigger might not fire
+            try {
+              console.log("Manually creating user role for OAuth user");
+              const { error: roleError } = await supabase
+                .from("user_roles")
+                .insert({
+                  user_id: session.user.id,
+                  role_name: "user",
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                });
+
+              if (roleError) {
+                console.error("Error manually creating user role:", roleError);
+              } else {
+                console.log("User role created successfully for OAuth user");
+              }
+            } catch (roleErr) {
+              console.error(
+                "Exception in manual user role creation for OAuth:",
+                roleErr,
+              );
+            }
           } catch (error) {
             console.error("Error creating user record for OAuth login:", error);
           }
@@ -548,6 +572,37 @@ export default function AuthProvider({
                   console.log("User record created successfully");
                 }
 
+                // Manually create user role since trigger might not fire
+                try {
+                  console.log(
+                    "Manually creating user role for OAuth callback user",
+                  );
+                  const { error: roleError } = await supabase
+                    .from("user_roles")
+                    .insert({
+                      user_id: data.session.user.id,
+                      role_name: "user",
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                    });
+
+                  if (roleError) {
+                    console.error(
+                      "Error manually creating user role in OAuth callback:",
+                      roleError,
+                    );
+                  } else {
+                    console.log(
+                      "User role created successfully in OAuth callback",
+                    );
+                  }
+                } catch (roleErr) {
+                  console.error(
+                    "Exception in manual user role creation in OAuth callback:",
+                    roleErr,
+                  );
+                }
+
                 // Wait for triggers to complete
                 await new Promise((resolve) => setTimeout(resolve, 1000));
               } catch (createError) {
@@ -624,6 +679,37 @@ export default function AuthProvider({
                     } else {
                       console.log(
                         "User record created successfully during email verification",
+                      );
+                    }
+
+                    // Manually create user role since trigger might not fire
+                    try {
+                      console.log(
+                        "Manually creating user role for email verification user",
+                      );
+                      const { error: roleError } = await supabase
+                        .from("user_roles")
+                        .insert({
+                          user_id: data.session.user.id,
+                          role_name: "user",
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                        });
+
+                      if (roleError) {
+                        console.error(
+                          "Error manually creating user role in email verification:",
+                          roleError,
+                        );
+                      } else {
+                        console.log(
+                          "User role created successfully in email verification",
+                        );
+                      }
+                    } catch (roleErr) {
+                      console.error(
+                        "Exception in manual user role creation in email verification:",
+                        roleErr,
                       );
                     }
                   } catch (createError) {
@@ -754,8 +840,76 @@ export default function AuthProvider({
             } else {
               console.log("User record created successfully");
             }
+
+            // Manually create user role since trigger might not fire
+            try {
+              console.log("Manually creating user role for new user");
+              const { error: roleError } = await supabase
+                .from("user_roles")
+                .insert({
+                  user_id: authData.user.id,
+                  role_name: "user",
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                });
+
+              if (roleError) {
+                console.error("Error manually creating user role:", roleError);
+              } else {
+                console.log("User role created successfully");
+              }
+            } catch (roleErr) {
+              console.error("Exception in manual user role creation:", roleErr);
+            }
           } else {
-            console.log("User already exists in database, skipping creation");
+            console.log(
+              "User already exists in database, checking for user role",
+            );
+
+            // Check if user role exists
+            const { data: existingRole, error: roleCheckError } = await supabase
+              .from("user_roles")
+              .select("id")
+              .eq("user_id", authData.user.id)
+              .maybeSingle();
+
+            if (roleCheckError) {
+              console.error(
+                "Error checking if user role exists:",
+                roleCheckError,
+              );
+            }
+
+            // Create user role if it doesn't exist
+            if (!existingRole) {
+              console.log("User role doesn't exist, creating it manually");
+              try {
+                const { error: roleError } = await supabase
+                  .from("user_roles")
+                  .insert({
+                    user_id: authData.user.id,
+                    role_name: "user",
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  });
+
+                if (roleError) {
+                  console.error(
+                    "Error manually creating user role:",
+                    roleError,
+                  );
+                } else {
+                  console.log("User role created successfully");
+                }
+              } catch (roleErr) {
+                console.error(
+                  "Exception in manual user role creation:",
+                  roleErr,
+                );
+              }
+            } else {
+              console.log("User role already exists, skipping creation");
+            }
           }
 
           // Show success message with more details

@@ -89,10 +89,17 @@ const UserRoleManager = () => {
     try {
       setLoading(true);
 
-      // Only get user roles data
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("id, user_id, role_name");
+      // Get user roles data with user full name
+      const { data: rolesData, error: rolesError } = await supabase.from(
+        "user_roles",
+      ).select(`
+          id,
+          user_id,
+          role_name,
+          created_at,
+          updated_at,
+          users!user_roles_user_id_fkey (full_name)
+        `);
 
       if (rolesError) {
         console.error("Error fetching user roles:", rolesError);
@@ -105,12 +112,14 @@ const UserRoleManager = () => {
         return;
       }
 
-      // Format the data with just the user_id and role
+      // Format the data including full name from users table
       const formattedUsers = rolesData.map((role) => ({
         id: role.id,
-        email: role.user_id, // Using user_id as the identifier
-        full_name: "", // Not showing full name
+        email: role.user_id,
+        full_name: role.users?.full_name || "N/A",
         role_name: role.role_name || "user",
+        created_at: role.created_at,
+        updated_at: role.updated_at,
       }));
 
       setUsers(formattedUsers);
@@ -344,6 +353,24 @@ const UserRoleManager = () => {
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
+                        Full Name
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Created At
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Updated At
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
                         Current Role
                       </th>
                       <th
@@ -360,6 +387,21 @@ const UserRoleManager = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">
                             {user.email}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {user.full_name}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {new Date(user.updated_at).toLocaleDateString()}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

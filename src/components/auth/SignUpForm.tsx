@@ -40,12 +40,12 @@ export default function SignUpForm() {
     }
   }, [location.search]);
 
-  // Check if user is already logged in
+  // Check if user is already logged in, but don't redirect if verification was just sent
   useEffect(() => {
-    if (user) {
+    if (user && !isVerificationSent) {
       navigate("/dashboard");
     }
-  }, [user, navigate]);
+  }, [user, navigate, isVerificationSent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,15 +61,16 @@ export default function SignUpForm() {
     try {
       await signUp(email, password, fullName);
 
+      // Set verification sent state first, then show toast
+      setIsVerificationSent(true);
+      setIsLoading(false); // Ensure loading state is reset
+
       toast({
         title: "Account Created",
         description:
           "Please check your email to verify your account. You can close this page.",
         variant: "default",
       });
-
-      setIsVerificationSent(true);
-      setIsLoading(false); // Ensure loading state is reset
     } catch (error: any) {
       console.error("Signup error:", error);
       setError(error.message);

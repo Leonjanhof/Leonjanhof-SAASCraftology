@@ -32,6 +32,32 @@ export const supabase = createClient(validSupabaseUrl, validSupabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    storageKey: "supabase.auth.token",
+    storage: {
+      getItem: (key) => {
+        try {
+          const item = localStorage.getItem(key);
+          return item;
+        } catch (error) {
+          console.error("Error getting auth item from storage:", error);
+          return null;
+        }
+      },
+      setItem: (key, value) => {
+        try {
+          localStorage.setItem(key, value);
+        } catch (error) {
+          console.error("Error setting auth item to storage:", error);
+        }
+      },
+      removeItem: (key) => {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {
+          console.error("Error removing auth item from storage:", error);
+        }
+      },
+    },
   },
   global: {
     headers: {

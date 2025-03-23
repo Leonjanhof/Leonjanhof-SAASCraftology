@@ -4,6 +4,10 @@ import { fetchUserData } from "./utils";
 // Function to refresh the session and user data
 export const refreshSession = async () => {
   try {
+    // Check if we have a stored session flag
+    const hasStoredSession =
+      localStorage.getItem("auth_session_active") === "true";
+    console.log("Refreshing session, stored session flag:", hasStoredSession);
     const {
       data: { session },
       error: sessionError,

@@ -97,6 +97,9 @@ export default function LoginForm() {
       await refreshSession(); // Ensure we have the latest user data
       console.log("Login: Session refreshed, redirecting to dashboard...");
 
+      // Set session flag for persistence
+      localStorage.setItem("auth_session_active", "true");
+
       // Use window.location for a hard redirect
       window.location.href = "/dashboard";
     } catch (error: any) {

@@ -111,17 +111,32 @@ export const createUserRecord = async (
       // Manually create user role since trigger might not fire
       try {
         console.log("Manually creating user role for new user");
-        const { error: roleError } = await supabase.from("user_roles").insert({
-          user_id: userId,
-          role_name: "user",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+        // Use RPC function to create user role to avoid ambiguous column reference
+        const { error: roleError } = await supabase.rpc("set_user_role", {
+          user_email: email || "",
+          new_role: "user",
         });
 
         if (roleError) {
           console.error("Error manually creating user role:", roleError);
+          // Fallback to direct insert with explicit table reference
+          const { error: insertError } = await supabase
+            .from("user_roles")
+            .insert({
+              user_id: userId,
+              role_name: "user",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select();
+
+          if (insertError) {
+            console.error("Fallback insert error:", insertError);
+          } else {
+            console.log("User role created successfully via fallback");
+          }
         } else {
-          console.log("User role created successfully");
+          console.log("User role created successfully via RPC");
         }
       } catch (roleErr) {
         console.error("Exception in manual user role creation:", roleErr);
@@ -144,19 +159,35 @@ export const createUserRecord = async (
       if (!existingRole) {
         console.log("User role doesn't exist, creating it manually");
         try {
-          const { error: roleError } = await supabase
-            .from("user_roles")
-            .insert({
-              user_id: userId,
-              role_name: "user",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
+          // Use RPC function to create user role to avoid ambiguous column reference
+          const { error: roleError } = await supabase.rpc("set_user_role", {
+            user_email: email || "",
+            new_role: "user",
+          });
 
           if (roleError) {
-            console.error("Error manually creating user role:", roleError);
+            console.error(
+              "Error manually creating user role via RPC:",
+              roleError,
+            );
+            // Fallback to direct insert with explicit table reference
+            const { error: insertError } = await supabase
+              .from("user_roles")
+              .insert({
+                user_id: userId,
+                role_name: "user",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .select();
+
+            if (insertError) {
+              console.error("Fallback insert error:", insertError);
+            } else {
+              console.log("User role created successfully via fallback");
+            }
           } else {
-            console.log("User role created successfully");
+            console.log("User role created successfully via RPC");
           }
         } catch (roleErr) {
           console.error("Exception in manual user role creation:", roleErr);

@@ -43,17 +43,30 @@ serve(async (req) => {
 
       // If no role exists, create one
       if (!existingRole) {
-        const { error: insertError } = await supabaseClient
-          .from("user_roles")
-          .insert({
-            user_id: userId,
-            role_name: "user",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+        // Try to use the RPC function first
+        const { error: rpcError } = await supabaseClient.rpc("set_user_role", {
+          user_email: "", // We don't have the email here, but the function will use user_id
+          new_role: "user",
+        });
 
-        if (insertError) {
-          throw new Error(`Error creating user role: ${insertError.message}`);
+        if (rpcError) {
+          console.log(
+            `RPC error, falling back to direct insert: ${rpcError.message}`,
+          );
+          // Fallback to direct insert
+          const { error: insertError } = await supabaseClient
+            .from("user_roles")
+            .insert({
+              user_id: userId,
+              role_name: "user",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select();
+
+          if (insertError) {
+            throw new Error(`Error creating user role: ${insertError.message}`);
+          }
         }
 
         return new Response(

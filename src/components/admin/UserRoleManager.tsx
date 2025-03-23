@@ -167,7 +167,7 @@ const UserRoleManager = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="admin">admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

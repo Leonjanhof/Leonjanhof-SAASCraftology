@@ -208,7 +208,7 @@ export default function AdminDashboardStoryboard() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full"
+                      className="w-full h-9"
                       onClick={() => setActiveTab("users")}
                     >
                       Manage Users
@@ -256,7 +256,7 @@ export default function AdminDashboardStoryboard() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full"
+                      className="w-full h-9"
                       onClick={() => setActiveTab("licenses")}
                     >
                       Manage Licenses
@@ -280,27 +280,23 @@ export default function AdminDashboardStoryboard() {
                     </div>
                   ) : (
                     <>
-                      <div className="text-3xl font-bold flex items-center">
+                      <div className="text-3xl font-bold flex items-center justify-center">
                         {systemStatus === "active" ? (
-                          <>
-                            <CheckCircle className="h-6 w-6 mr-2 text-green-500" />
-                            <span className="text-green-600">Active</span>
-                          </>
+                          <CheckCircle className="h-12 w-12 text-green-500" />
                         ) : (
-                          <>
-                            <XCircle className="h-6 w-6 mr-2 text-red-500" />
-                            <span className="text-red-600">Inactive</span>
-                          </>
+                          <XCircle className="h-12 w-12 text-red-500" />
                         )}
                       </div>
-                      <p className="text-sm text-gray-500">System status</p>
+                      <p className="text-sm text-gray-500 text-center">
+                        System status
+                      </p>
                     </>
                   )}
                   <div className="mt-4">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full"
+                      className="w-full h-9"
                       onClick={() => setActiveTab("settings")}
                     >
                       System Settings

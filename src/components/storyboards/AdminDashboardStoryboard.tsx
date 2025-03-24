@@ -125,7 +125,8 @@ export default function AdminDashboardStoryboard() {
   }, []);
 
   // Create a reference to the UserRoleManager component
-  const userRoleManagerRef = React.useRef<any>(null);
+  // Create a reference to the UserRoleManager component
+  const userRoleManagerRef = React.useRef(null);
 
   const handleRefresh = () => {
     // Determine what to refresh based on the active tab

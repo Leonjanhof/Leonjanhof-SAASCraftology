@@ -73,10 +73,23 @@ module.exports = {
           "75%": { transform: "translate(-30px, 20px)" },
           "100%": { transform: "translate(0, 0)" },
         },
+        spin: {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
+        bounce: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-20px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        spin: "spin 1s linear infinite",
+        bounce: "bounce 1s ease-in-out infinite",
+      },
+      transitionProperty: {
+        width: "width",
       },
     },
   },

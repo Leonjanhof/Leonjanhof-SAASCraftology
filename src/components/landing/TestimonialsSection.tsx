@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../supabase/supabase";
-import { motion } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useTransform,
+  useSpring,
+  useAnimationControls,
+} from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import TextAnimation from "./animations/TextAnimation";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 
 interface TestimonialProps {
   content: string;
@@ -16,49 +23,82 @@ interface TestimonialProps {
   rating?: number;
 }
 
-const Testimonial: React.FC<TestimonialProps> = ({
-  content,
-  author,
-  role,
-  company,
-  avatarSeed,
-  rating = 5,
-}) => {
+const Testimonial: React.FC<
+  TestimonialProps & { onDragEnd?: (info: any) => void }
+> = ({ content, author, role, company, avatarSeed, rating = 5, onDragEnd }) => {
+  const controls = useAnimationControls();
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-10, 10]);
+  const springConfig = { damping: 20, stiffness: 300 };
+  const springX = useSpring(x, springConfig);
+  const springRotate = useSpring(rotate, springConfig);
+
   return (
-    <Card className="h-full">
-      <CardContent className="p-6">
-        <div className="flex mb-4">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              className={`h-5 w-5 ${i < (rating || 5) ? "text-green-400 fill-green-400" : "text-gray-300 fill-gray-300"}`}
-            />
-          ))}
-        </div>
-        <p className="text-gray-700 mb-6">"{content}"</p>
-        <div className="flex items-center">
-          <Avatar className="h-12 w-12 mr-4">
-            <AvatarImage
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`}
-              alt={author}
-            />
-            <AvatarFallback>{author[0]}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h4 className="font-semibold">{author}</h4>
-            <p className="text-sm text-gray-600">
-              {role}, {company}
-            </p>
+    <motion.div
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      style={{
+        x: springX,
+        rotate: springRotate,
+        cursor: "grab",
+      }}
+      whileTap={{ cursor: "grabbing" }}
+      whileHover={{ scale: 1.03 }}
+      onDragEnd={(_, info) => {
+        if (onDragEnd) onDragEnd(info);
+        controls.start({
+          x: 0,
+          transition: { type: "spring", stiffness: 300, damping: 20 },
+        });
+      }}
+      className="h-full w-full px-2 snap-center"
+    >
+      <Card className="h-full shadow-lg hover:shadow-xl transition-shadow">
+        <CardContent className="p-6">
+          <div className="flex mb-4">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`h-5 w-5 ${i < (rating || 5) ? "text-green-400 fill-green-400" : "text-gray-300 fill-gray-300"}`}
+              />
+            ))}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+          <p className="text-gray-700 mb-6">"{content}"</p>
+          <div className="flex items-center">
+            <Avatar className="h-12 w-12 mr-4">
+              <AvatarImage
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`}
+                alt={author}
+              />
+              <AvatarFallback>{author[0]}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h4 className="font-semibold">{author}</h4>
+              <p className="text-sm text-gray-600">
+                {role}, {company}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 
 const TestimonialsSection: React.FC = () => {
   const [testimonials, setTestimonials] = useState<TestimonialProps[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
   const realtimeSubscriptionRef = useRef<RealtimeChannel | null>(null);
+
+  // Responsive breakpoints
+  const isSmall = useMediaQuery("(max-width: 640px)");
+  const isMedium = useMediaQuery("(min-width: 641px) and (max-width: 1024px)");
+
+  // Calculate how many items to show based on screen size
+  const itemsToShow = isSmall ? 1 : isMedium ? 2 : 3;
+  const maxIndex = Math.max(0, testimonials.length - itemsToShow);
 
   useEffect(() => {
     // Set up realtime subscription
@@ -122,70 +162,14 @@ const TestimonialsSection: React.FC = () => {
           // Only use user reviews, no default testimonials
           setTestimonials([...userReviews]); // Use spread operator to ensure state update
         } else {
-          console.log("No reviews found, setting default testimonials");
-          // Set default testimonials if no reviews found
-          setTestimonials([
-            {
-              content:
-                "The automation tools have saved me countless hours of manual work. Highly recommended!",
-              author: "Alex Johnson",
-              role: "Developer",
-              company: "Autovoter",
-              avatarSeed: "alex",
-              rating: 5,
-            },
-            {
-              content:
-                "Excellent product with great support. The factionsbot has been a game-changer for our team.",
-              author: "Sarah Miller",
-              role: "Team Lead",
-              company: "Factionsbot 1.18.2",
-              avatarSeed: "sarah",
-              rating: 5,
-            },
-            {
-              content:
-                "The captcha solver works flawlessly. It's been incredibly reliable and accurate.",
-              author: "Michael Chen",
-              role: "Software Engineer",
-              company: "EMC captcha solver",
-              avatarSeed: "michael",
-              rating: 5,
-            },
-          ]);
+          console.log("No reviews found, setting empty testimonials");
+          // Set empty testimonials if no reviews found
+          setTestimonials([]);
         }
       } catch (error) {
         console.error("Error in fetchReviews:", error);
-        // Set default testimonials if there's an error
-        setTestimonials([
-          {
-            content:
-              "The automation tools have saved me countless hours of manual work. Highly recommended!",
-            author: "Alex Johnson",
-            role: "Developer",
-            company: "Autovoter",
-            avatarSeed: "alex",
-            rating: 5,
-          },
-          {
-            content:
-              "Excellent product with great support. The factionsbot has been a game-changer for our team.",
-            author: "Sarah Miller",
-            role: "Team Lead",
-            company: "Factionsbot 1.18.2",
-            avatarSeed: "sarah",
-            rating: 5,
-          },
-          {
-            content:
-              "The captcha solver works flawlessly. It's been incredibly reliable and accurate.",
-            author: "Michael Chen",
-            role: "Software Engineer",
-            company: "EMC captcha solver",
-            avatarSeed: "michael",
-            rating: 5,
-          },
-        ]);
+        // Set empty testimonials if there's an error
+        setTestimonials([]);
         // Still try to set up realtime subscription even if initial fetch failed
         setupRealtimeSubscription();
       }
@@ -237,6 +221,46 @@ const TestimonialsSection: React.FC = () => {
     },
   };
 
+  // Handle navigation
+  const handlePrev = () => {
+    if (currentIndex > 0 && !isAnimating) {
+      setIsAnimating(true);
+      setCurrentIndex(currentIndex - 1);
+      setTimeout(() => setIsAnimating(false), 500);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < maxIndex && !isAnimating) {
+      setIsAnimating(true);
+      setCurrentIndex(currentIndex + 1);
+      setTimeout(() => setIsAnimating(false), 500);
+    }
+  };
+
+  // Handle drag end
+  const handleDragEnd = (info: any) => {
+    const threshold = 100; // minimum distance to trigger a slide
+
+    if (info.offset.x > threshold && currentIndex > 0) {
+      handlePrev();
+    } else if (info.offset.x < -threshold && currentIndex < maxIndex) {
+      handleNext();
+    }
+  };
+
+  // Scroll to current index when it changes
+  useEffect(() => {
+    if (carouselRef.current) {
+      const scrollAmount =
+        currentIndex * (carouselRef.current.scrollWidth / testimonials.length);
+      carouselRef.current.scrollTo({
+        left: scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  }, [currentIndex, testimonials.length]);
+
   return (
     <section className="py-20 bg-white">
       <div className="container px-4 mx-auto">
@@ -262,32 +286,86 @@ const TestimonialsSection: React.FC = () => {
         </div>
 
         {testimonials.length > 0 ? (
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-8"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-          >
-            {testimonials.map((testimonial, index) => (
-              <motion.div key={index} variants={itemVariants}>
-                <Testimonial
-                  content={testimonial.content}
-                  author={testimonial.author}
-                  role={testimonial.role}
-                  company={testimonial.company}
-                  avatarSeed={testimonial.avatarSeed}
-                  rating={testimonial.rating}
-                />
+          <div className="relative">
+            <div className="overflow-hidden">
+              <motion.div
+                ref={carouselRef}
+                className="flex snap-x snap-mandatory overflow-x-auto scrollbar-hide scroll-smooth"
+                variants={containerVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-100px" }}
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                {testimonials.map((testimonial, index) => (
+                  <motion.div
+                    key={index}
+                    variants={itemVariants}
+                    className={`flex-none w-full sm:w-1/2 lg:w-1/3 transition-all duration-300`}
+                  >
+                    <Testimonial
+                      content={testimonial.content}
+                      author={testimonial.author}
+                      role={testimonial.role}
+                      company={testimonial.company}
+                      avatarSeed={testimonial.avatarSeed}
+                      rating={testimonial.rating}
+                      onDragEnd={handleDragEnd}
+                    />
+                  </motion.div>
+                ))}
               </motion.div>
-            ))}
-          </motion.div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-500">
-              No reviews yet. Be the first to share your experience!
-            </p>
+            </div>
+
+            {/* Navigation buttons */}
+            {testimonials.length > itemsToShow && (
+              <div className="flex justify-between w-full absolute top-1/2 transform -translate-y-1/2 px-4 z-10">
+                <button
+                  onClick={handlePrev}
+                  disabled={currentIndex === 0 || isAnimating}
+                  className={`p-2 rounded-full bg-white shadow-lg hover:bg-gray-100 transition-colors ${currentIndex === 0 ? "opacity-50 cursor-not-allowed" : "opacity-100"}`}
+                  aria-label="Previous testimonial"
+                >
+                  <ChevronLeft className="h-6 w-6 text-green-400" />
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={currentIndex >= maxIndex || isAnimating}
+                  className={`p-2 rounded-full bg-white shadow-lg hover:bg-gray-100 transition-colors ${currentIndex >= maxIndex ? "opacity-50 cursor-not-allowed" : "opacity-100"}`}
+                  aria-label="Next testimonial"
+                >
+                  <ChevronRight className="h-6 w-6 text-green-400" />
+                </button>
+              </div>
+            )}
+
+            {/* Pagination dots */}
+            {testimonials.length > itemsToShow && (
+              <div className="flex justify-center mt-6 space-x-2">
+                {Array.from({ length: maxIndex + 1 }).map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      if (!isAnimating) {
+                        setIsAnimating(true);
+                        setCurrentIndex(index);
+                        setTimeout(() => setIsAnimating(false), 500);
+                      }
+                    }}
+                    className={`h-2 w-2 rounded-full transition-all ${currentIndex === index ? "bg-green-400 w-4" : "bg-gray-300"}`}
+                    aria-label={`Go to testimonial ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Instructions for users */}
+            <div className="text-center mt-6 text-sm text-gray-500">
+              <p>Drag a testimonial to spin through reviews</p>
+            </div>
           </div>
+        ) : (
+          <></>
         )}
       </div>
     </section>

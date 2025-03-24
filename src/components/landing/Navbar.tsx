@@ -7,13 +7,30 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X, Loader2 } from "lucide-react";
 import { useAuth } from "../../../supabase/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { supabase } from "../../../supabase/supabase";
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  price_id: string;
+  features: string[];
+  is_subscription: boolean;
+  is_popular: boolean;
+  icon_name: string;
+  created_at: string;
+  updated_at: string;
+}
 
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const { user, signOut, isAdmin, refreshSession } = useAuth();
   const headerRef = useRef<HTMLElement>(null);
 
@@ -28,6 +45,32 @@ const Navbar: React.FC = () => {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Fetch products from Supabase
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoadingProducts(true);
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching products:", error);
+          return;
+        }
+
+        setProducts(data || []);
+      } catch (error) {
+        console.error("Error in fetchProducts:", error);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   // Refresh session when component mounts to ensure auth state is current
@@ -70,6 +113,11 @@ const Navbar: React.FC = () => {
         behavior: "smooth",
       });
     }
+  };
+
+  // Function to generate card ID from product name
+  const getCardIdFromProductName = (name: string): string => {
+    return `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-card`;
   };
 
   return (
@@ -119,39 +167,35 @@ const Navbar: React.FC = () => {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="w-48">
-                <DropdownMenuItem className="hover:bg-green-400 hover:text-white focus:bg-green-400 focus:text-white">
-                  <Link
-                    to="/#products-section"
-                    className="w-full text-green-400 hover:text-white group-hover:text-white"
-                    onClick={() => {
-                      scrollToElement("autovoter-card");
-                    }}
-                  >
-                    autovoter
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="hover:bg-green-400 hover:text-white focus:bg-green-400 focus:text-white">
-                  <Link
-                    to="/#products-section"
-                    className="w-full text-green-400 hover:text-white group-hover:text-white"
-                    onClick={() => {
-                      scrollToElement("factionsbot-1-18-2-card");
-                    }}
-                  >
-                    factionsbot 1.18.2
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="hover:bg-green-400 hover:text-white focus:bg-green-400 focus:text-white">
-                  <Link
-                    to="/#products-section"
-                    className="w-full text-green-400 hover:text-white group-hover:text-white"
-                    onClick={() => {
-                      scrollToElement("emc-captcha-solver-card");
-                    }}
-                  >
-                    emc captcha solver
-                  </Link>
-                </DropdownMenuItem>
+                {isLoadingProducts ? (
+                  <div className="flex items-center justify-center py-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-green-400 mr-2" />
+                    <span className="text-sm">Loading...</span>
+                  </div>
+                ) : products.length > 0 ? (
+                  products.map((product) => (
+                    <DropdownMenuItem
+                      key={product.id}
+                      className="hover:bg-green-400 hover:text-white focus:bg-green-400 focus:text-white"
+                    >
+                      <Link
+                        to="/#products-section"
+                        className="w-full text-green-400 hover:text-white group-hover:text-white"
+                        onClick={() => {
+                          scrollToElement(
+                            getCardIdFromProductName(product.name),
+                          );
+                        }}
+                      >
+                        {product.name.toLowerCase()}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <div className="text-center py-2 text-gray-500 text-sm">
+                    No products available
+                  </div>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </nav>
@@ -265,42 +309,38 @@ const Navbar: React.FC = () => {
             <div className="py-2">
               <div className="flex items-center text-white mb-2">Products</div>
               <div className="pl-4 space-y-2">
-                <Link
-                  to="/#products-section"
-                  className="block text-gray-300 hover:text-green-400 transition-colors py-1"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setTimeout(() => scrollToElement("autovoter-card"), 100);
-                  }}
-                >
-                  autovoter
-                </Link>
-                <Link
-                  to="/#products-section"
-                  className="block text-gray-300 hover:text-green-400 transition-colors py-1"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setTimeout(
-                      () => scrollToElement("factionsbot-1-18-2-card"),
-                      100,
-                    );
-                  }}
-                >
-                  factionsbot 1.18.2
-                </Link>
-                <Link
-                  to="/#products-section"
-                  className="block text-gray-300 hover:text-green-400 transition-colors py-1"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setTimeout(
-                      () => scrollToElement("emc-captcha-solver-card"),
-                      100,
-                    );
-                  }}
-                >
-                  emc captcha solver
-                </Link>
+                {isLoadingProducts ? (
+                  <div className="flex items-center py-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-green-400 mr-2" />
+                    <span className="text-sm text-gray-300">
+                      Loading products...
+                    </span>
+                  </div>
+                ) : products.length > 0 ? (
+                  products.map((product) => (
+                    <Link
+                      key={product.id}
+                      to="/#products-section"
+                      className="block text-gray-300 hover:text-green-400 transition-colors py-1"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setTimeout(
+                          () =>
+                            scrollToElement(
+                              getCardIdFromProductName(product.name),
+                            ),
+                          100,
+                        );
+                      }}
+                    >
+                      {product.name.toLowerCase()}
+                    </Link>
+                  ))
+                ) : (
+                  <div className="text-gray-500 text-sm py-1">
+                    No products available
+                  </div>
+                )}
               </div>
             </div>
 

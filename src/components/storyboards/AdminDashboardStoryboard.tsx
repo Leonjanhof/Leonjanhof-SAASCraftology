@@ -154,13 +154,6 @@ export default function AdminDashboardStoryboard() {
               />
               Refresh
             </Button>
-            <Button className="bg-green-400 hover:text-green-400 text-white relative overflow-hidden group">
-              <span className="relative z-10 transition-colors duration-300">
-                <ShieldAlert className="h-4 w-4 mr-2 inline" />
-                Admin Mode
-              </span>
-              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-            </Button>
           </div>
         </div>
 

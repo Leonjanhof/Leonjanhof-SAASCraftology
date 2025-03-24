@@ -18,6 +18,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Loader2,
@@ -27,6 +47,8 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Trash2,
+  UserCog,
 } from "lucide-react";
 
 interface UserWithRole {
@@ -60,6 +82,12 @@ const UserRoleManager = () => {
   >(null);
   const [roleForUpdate, setRoleForUpdate] = useState<string>("user");
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [selectedUserForRoleChange, setSelectedUserForRoleChange] =
+    useState<UserWithRole | null>(null);
+  const [newRoleValue, setNewRoleValue] = useState<string>("user");
 
   useEffect(() => {
     fetchUsers();
@@ -207,6 +235,87 @@ const UserRoleManager = () => {
     } finally {
       setIsUpdatingRole(false);
       setSelectedUserForUpdate(null);
+    }
+  };
+
+  const handleOpenRoleDialog = (user: UserWithRole) => {
+    setSelectedUserForRoleChange(user);
+    setNewRoleValue(user.role_name);
+    setIsRoleDialogOpen(true);
+  };
+
+  const handleRoleChange = async () => {
+    if (!selectedUserForRoleChange || !newRoleValue) return;
+
+    try {
+      setIsUpdatingRole(true);
+
+      const { data, error } = await supabase.functions.invoke(
+        "supabase-functions-manage-user-role",
+        {
+          body: {
+            userId: selectedUserForRoleChange.user_id,
+            newRole: newRoleValue,
+          },
+        },
+      );
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `User role updated to ${newRoleValue}`,
+        variant: "default",
+      });
+
+      setIsRoleDialogOpen(false);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update user role. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingRole(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      setIsDeleting(true);
+
+      const { data, error } = await supabase.functions.invoke(
+        "supabase-functions-delete-user",
+        {
+          body: {
+            userId: userToDelete.user_id,
+          },
+        },
+      );
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `User ${userToDelete.email} has been deleted`,
+        variant: "default",
+      });
+
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: `Failed to delete user: ${error.message || "Unknown error"}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -388,33 +497,61 @@ const UserRoleManager = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
-                            <Select
-                              value={
-                                selectedUserForUpdate === user.id
-                                  ? roleForUpdate
-                                  : user.role_name
-                              }
-                              onValueChange={(value) => {
-                                setRoleForUpdate(value);
-                                handleUpdateUserRole(user.id, value);
-                              }}
-                              disabled={
-                                isUpdatingRole &&
-                                selectedUserForUpdate === user.id
-                              }
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenRoleDialog(user)}
+                              className="h-8 flex items-center"
                             >
-                              <SelectTrigger className="h-8 w-32">
-                                <SelectValue placeholder="Change role" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="user">User</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {isUpdatingRole &&
-                              selectedUserForUpdate === user.id && (
-                                <Loader2 className="h-4 w-4 animate-spin text-green-400" />
-                              )}
+                              <UserCog className="h-4 w-4 mr-1" />
+                              Set Role
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Delete User
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this user?
+                                    This will remove all user data including
+                                    licenses, subscriptions, reviews, and
+                                    authentication information. This action
+                                    cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => {
+                                      setUserToDelete(user);
+                                      setTimeout(handleDeleteUser, 100);
+                                    }}
+                                    className="bg-red-500 hover:bg-red-600 text-white"
+                                  >
+                                    {isDeleting &&
+                                    userToDelete?.id === user.id ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Deleting...
+                                      </>
+                                    ) : (
+                                      "Delete User"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </td>
                       </tr>
@@ -457,6 +594,57 @@ const UserRoleManager = () => {
           </div>
         </div>
       </CardContent>
+
+      {/* Role Change Dialog */}
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Update the role for user {selectedUserForRoleChange?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">Select Role</label>
+            <Select value={newRoleValue} onValueChange={setNewRoleValue}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRoleDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRoleChange}
+              disabled={isUpdatingRole}
+              className="bg-green-400 hover:text-green-400 text-white relative overflow-hidden group"
+            >
+              {isUpdatingRole ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <span className="relative z-10 transition-colors duration-300">
+                    Update Role
+                  </span>
+                  <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

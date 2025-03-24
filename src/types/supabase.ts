@@ -45,6 +45,48 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          created_at: string | null
+          description: string
+          features: string[]
+          icon_name: string
+          id: string
+          is_popular: boolean
+          is_subscription: boolean
+          name: string
+          price: number
+          price_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          features?: string[]
+          icon_name?: string
+          id?: string
+          is_popular?: boolean
+          is_subscription?: boolean
+          name: string
+          price: number
+          price_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          features?: string[]
+          icon_name?: string
+          id?: string
+          is_popular?: boolean
+          is_subscription?: boolean
+          name?: string
+          price?: number
+          price_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           created_at: string | null
@@ -207,7 +249,6 @@ export type Database = {
           full_name: string | null
           id: string
           image: string | null
-          name: string | null
           subscription: string | null
           token_identifier: string
           updated_at: string | null
@@ -221,7 +262,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           image?: string | null
-          name?: string | null
           subscription?: string | null
           token_identifier: string
           updated_at?: string | null
@@ -235,7 +275,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           image?: string | null
-          name?: string | null
           subscription?: string | null
           token_identifier?: string
           updated_at?: string | null

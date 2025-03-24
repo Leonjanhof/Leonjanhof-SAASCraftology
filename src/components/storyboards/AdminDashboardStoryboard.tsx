@@ -12,9 +12,11 @@ import {
   XCircle,
   AlertTriangle,
   Clock,
+  Package,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserRoleManager from "../admin/UserRoleManager";
+import ProductManager from "../admin/ProductManager";
 import { supabase } from "../../../supabase/supabase";
 import { checkSupabaseConnection } from "../../../supabase/supabase";
 import { useToast } from "@/components/ui/use-toast";
@@ -124,9 +126,9 @@ export default function AdminDashboardStoryboard() {
     };
   }, []);
 
-  // Create a reference to the UserRoleManager component
-  // Create a reference to the UserRoleManager component
+  // Create references to the components
   const userRoleManagerRef = React.useRef(null);
+  const productManagerRef = React.useRef(null);
 
   const handleRefresh = () => {
     // Determine what to refresh based on the active tab
@@ -155,6 +157,25 @@ export default function AdminDashboardStoryboard() {
             description: "User management data is being updated",
           });
           // Fallback if ref is not available
+          fetchStats();
+        }
+        break;
+      case "products":
+        // Access the ProductManager component and call its fetchProducts method
+        if (
+          productManagerRef.current &&
+          productManagerRef.current.fetchProducts
+        ) {
+          productManagerRef.current.fetchProducts();
+          toast({
+            title: "Refreshing",
+            description: "Product data is being updated",
+          });
+        } else {
+          toast({
+            title: "Refreshing",
+            description: "Product data is being updated",
+          });
           fetchStats();
         }
         break;
@@ -209,9 +230,10 @@ export default function AdminDashboardStoryboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
+            <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="licenses">Licenses</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -422,6 +444,12 @@ export default function AdminDashboardStoryboard() {
                   <UserRoleManager ref={userRoleManagerRef} />
                 </CardContent>
               </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="products" className="mt-6">
+            <div className="grid grid-cols-1 gap-6">
+              <ProductManager ref={productManagerRef} />
             </div>
           </TabsContent>
 

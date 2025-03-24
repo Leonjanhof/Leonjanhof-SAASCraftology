@@ -63,7 +63,7 @@ interface UserWithRole {
 
 const USERS_PER_PAGE = 10;
 
-const UserRoleManager = () => {
+const UserRoleManager = React.forwardRef((props, ref) => {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithRole[]>([]);
@@ -648,5 +648,314 @@ const UserRoleManager = () => {
     </Card>
   );
 };
+
+  // Expose fetchUsers method to parent components via ref
+  React.useImperativeHandle(ref, () => ({
+    fetchUsers
+  }));
+
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>User Role Management</CardTitle>
+        <CardDescription>
+          Assign or change roles for users in the system
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium">User Email</label>
+              <Input
+                placeholder="user@example.com"
+                value={targetEmail}
+                onChange={(e) => setTargetEmail(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Role</label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                onClick={handleUpdateRole}
+                disabled={isSubmitting || !targetEmail}
+                className="w-full"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>Update Role</>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Current Users</h3>
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by email or name"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    className="pl-8 w-64"
+                  />
+                </div>
+                <Button variant="outline" size="sm" onClick={handleSearch}>
+                  Search
+                </Button>
+                <Button variant="outline" size="sm" onClick={fetchUsers}>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : displayedUsers.length === 0 ? (
+              <div className="text-center py-8 border rounded-md bg-gray-50">
+                <p className="text-gray-500">
+                  {searchQuery
+                    ? "No users found matching your search."
+                    : "No user roles found in the system."}
+                </p>
+              </div>
+            ) : (
+              <div className="border rounded-md overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Full Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Created At
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Updated At
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Current Role
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {displayedUsers.map((user) => (
+                      <tr key={user.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {user.email}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {user.full_name}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {new Date(user.updated_at).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              user.role_name === "admin"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-green-100 text-green-800"
+                            }`}
+                          >
+                            {user.role_name === "admin" ? (
+                              <UserCheck className="h-3 w-3 mr-1" />
+                            ) : (
+                              <UserX className="h-3 w-3 mr-1" />
+                            )}
+                            {user.role_name}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenRoleDialog(user)}
+                              className="h-8 flex items-center"
+                            >
+                              <UserCog className="h-4 w-4 mr-1" />
+                              Set Role
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Delete User
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this user?
+                                    This will remove all user data including
+                                    licenses, subscriptions, reviews, and
+                                    authentication information. This action
+                                    cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => {
+                                      setUserToDelete(user);
+                                      setTimeout(handleDeleteUser, 100);
+                                    }}
+                                    className="bg-red-500 hover:bg-red-600 text-white"
+                                  >
+                                    {isDeleting &&
+                                    userToDelete?.id === user.id ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Deleting...
+                                      </>
+                                    ) : (
+                                      "Delete User"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
+                  <div className="text-sm text-gray-500">
+                    Showing{" "}
+                    {displayedUsers.length > 0
+                      ? (currentPage - 1) * USERS_PER_PAGE + 1
+                      : 0}{" "}
+                    to {Math.min(currentPage * USERS_PER_PAGE, totalCount)} of{" "}
+                    {totalCount} users
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePrevPage}
+                      disabled={currentPage === 1}
+                      className="h-9 w-9 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      className="h-9 w-9 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+
+      {/* Role Change Dialog */}
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Update the role for user {selectedUserForRoleChange?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">Select Role</label>
+            <Select value={newRoleValue} onValueChange={setNewRoleValue}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRoleDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRoleChange}
+              disabled={isUpdatingRole}
+              className="bg-green-400 hover:text-green-400 text-white relative overflow-hidden group"
+            >
+              {isUpdatingRole ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <span className="relative z-10 transition-colors duration-300">
+                    Update Role
+                  </span>
+                  <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+});
 
 export default UserRoleManager;

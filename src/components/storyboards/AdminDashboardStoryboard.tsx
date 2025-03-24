@@ -124,12 +124,62 @@ export default function AdminDashboardStoryboard() {
     };
   }, []);
 
+  // Create a reference to the UserRoleManager component
+  const userRoleManagerRef = React.useRef<any>(null);
+
   const handleRefresh = () => {
-    fetchStats();
-    toast({
-      title: "Refreshing",
-      description: "Dashboard statistics are being updated",
-    });
+    // Determine what to refresh based on the active tab
+    switch (activeTab) {
+      case "overview":
+        fetchStats();
+        toast({
+          title: "Refreshing",
+          description: "Dashboard statistics are being updated",
+        });
+        break;
+      case "users":
+        // Access the UserRoleManager component and call its fetchUsers method
+        if (
+          userRoleManagerRef.current &&
+          userRoleManagerRef.current.fetchUsers
+        ) {
+          userRoleManagerRef.current.fetchUsers();
+          toast({
+            title: "Refreshing",
+            description: "User management data is being updated",
+          });
+        } else {
+          toast({
+            title: "Refreshing",
+            description: "User management data is being updated",
+          });
+          // Fallback if ref is not available
+          fetchStats();
+        }
+        break;
+      case "licenses":
+        // For now, just refresh the stats as license management is not implemented yet
+        fetchStats();
+        toast({
+          title: "Refreshing",
+          description: "License data is being updated",
+        });
+        break;
+      case "settings":
+        // For now, just refresh the system status
+        fetchStats();
+        toast({
+          title: "Refreshing",
+          description: "System settings are being updated",
+        });
+        break;
+      default:
+        fetchStats();
+        toast({
+          title: "Refreshing",
+          description: "Dashboard data is being updated",
+        });
+    }
   };
 
   return (
@@ -368,7 +418,7 @@ export default function AdminDashboardStoryboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <UserRoleManager />
+                  <UserRoleManager ref={userRoleManagerRef} />
                 </CardContent>
               </Card>
             </div>

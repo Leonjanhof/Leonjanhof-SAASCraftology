@@ -77,11 +77,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
   const [isCancelling, setIsCancelling] = useState(false);
   const [localSubscriptionEndDate, setLocalSubscriptionEndDate] = useState<
     string | null
-  >(
-    subscriptionEndDate
-      ? new Date(subscriptionEndDate * 1000).toLocaleDateString()
-      : null,
-  );
+  >(null);
   const [isCancelled, setIsCancelled] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
@@ -245,11 +241,27 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
 
           if (error) throw error;
 
-          if (data?.cancel_at_period_end && data?.current_period_end) {
+          // Only set as cancelled if cancel_at_period_end is explicitly true
+          if (data?.cancel_at_period_end === true && data?.current_period_end) {
             const endDate = new Date(data.current_period_end * 1000);
             setLocalSubscriptionEndDate(endDate.toLocaleDateString());
             setIsCancelled(true);
+          } else {
+            // For active subscriptions, just set the end date for display purposes
+            // but don't mark as cancelled
+            if (subscriptionEndDate) {
+              setLocalSubscriptionEndDate(null);
+            }
+            setIsCancelled(false);
           }
+
+          console.log("Subscription status:", {
+            isCancelled: data?.cancel_at_period_end === true,
+            subscriptionId,
+            endDate: data?.current_period_end
+              ? new Date(data.current_period_end * 1000).toLocaleDateString()
+              : null,
+          });
         } catch (err) {
           console.error("Error checking subscription status:", err);
         }
@@ -257,7 +269,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
     };
 
     checkSubscriptionStatus();
-  }, [subscriptionId]);
+  }, [subscriptionId, subscriptionEndDate]);
 
   // Verify license with API
   const verifyLicense = async () => {
@@ -459,7 +471,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
               </div>
             )}
 
-            {isCancelled || localSubscriptionEndDate ? (
+            {isCancelled ? (
               <div className="w-full text-center">
                 <div className="p-3 bg-amber-50 text-amber-800 rounded-md text-center">
                   <p className="text-sm font-medium">Subscription cancelled</p>

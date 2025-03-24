@@ -95,49 +95,40 @@ export async function resetHWID(
   licenseId: string,
 ): Promise<{ success: boolean; message?: string }> {
   try {
-    // First check if a week has passed since the last reset
-    const { data: license, error: fetchError } = await supabase
-      .from("licenses")
-      .select("last_reset_date")
-      .eq("id", licenseId)
-      .single();
+    // Get the current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (fetchError) {
-      console.error("Error fetching license:", fetchError);
-      return { success: false, message: "Failed to check reset eligibility" };
+    if (userError || !user) {
+      console.error("Error getting current user:", userError);
+      return { success: false, message: "User not authenticated" };
     }
 
-    // Check if a week has passed since the last reset
-    if (license.last_reset_date) {
-      const lastReset = new Date(license.last_reset_date);
-      const now = new Date();
-      const oneWeek = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+    // Call the reset-hwid edge function
+    const { data, error } = await supabase.functions.invoke(
+      "supabase-functions-reset-hwid",
+      {
+        body: {
+          license_id: licenseId,
+          user_id: user.id,
+        },
+      },
+    );
 
-      if (now.getTime() - lastReset.getTime() < oneWeek) {
-        return {
-          success: false,
-          message: "You can only reset your HWID once per week",
-        };
-      }
+    if (error) {
+      console.error("Error calling reset-hwid function:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to reset HWID",
+      };
     }
 
-    // If eligible, reset the HWID
-    const now = new Date().toISOString();
-    const { error: updateError } = await supabase
-      .from("licenses")
-      .update({
-        hwid: null,
-        updated_at: now,
-        last_reset_date: now,
-      })
-      .eq("id", licenseId);
-
-    if (updateError) {
-      console.error("Error resetting HWID:", updateError);
-      return { success: false, message: "Failed to reset HWID" };
-    }
-
-    return { success: true };
+    return {
+      success: data.success,
+      message: data.message,
+    };
   } catch (e) {
     console.error("Exception in resetHWID:", e);
     return { success: false, message: "An unexpected error occurred" };

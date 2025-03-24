@@ -280,26 +280,29 @@ const ProductManager = React.forwardRef((props, ref) => {
         is_subscription: formData.is_subscription,
         is_popular: formData.is_popular,
         icon_name: formData.icon_name,
-        updated_at: new Date().toISOString(),
       };
 
-      let result;
-
+      // Add id if editing an existing product
       if (editingProduct) {
-        // Update existing product
-        result = await supabase
-          .from("products")
-          .update(productData)
-          .eq("id", editingProduct.id);
-      } else {
-        // Create new product
-        result = await supabase.from("products").insert({
-          ...productData,
-          created_at: new Date().toISOString(),
-        });
+        productData.id = editingProduct.id;
       }
 
-      if (result.error) throw result.error;
+      // Call the save-product edge function instead of direct database access
+      const { data, error } = await supabase.functions.invoke(
+        "supabase-functions-save-product",
+        {
+          body: {
+            product: productData,
+            isUpdate: !!editingProduct,
+          },
+        },
+      );
+
+      if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       toast({
         title: "Success",

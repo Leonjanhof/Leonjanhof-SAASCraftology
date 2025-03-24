@@ -137,6 +137,11 @@ const Navbar: React.FC = () => {
                 localStorage.setItem("auth_session_active", "true");
                 console.log("Logo clicked: Reinforced session persistence");
               }
+              // Scroll to top of page
+              window.scrollTo({
+                top: 0,
+                behavior: "smooth",
+              });
             }}
           >
             <span className="text-xl font-bold text-white">
@@ -155,6 +160,11 @@ const Navbar: React.FC = () => {
                   localStorage.setItem("auth_session_active", "true");
                   console.log("Home clicked: Reinforced session persistence");
                 }
+                // Scroll to top of page
+                window.scrollTo({
+                  top: 0,
+                  behavior: "smooth",
+                });
               }}
             >
               Home
@@ -301,6 +311,11 @@ const Navbar: React.FC = () => {
                   localStorage.setItem("auth_session_active", "true");
                   console.log("Home clicked: Reinforced session persistence");
                 }
+                // Scroll to top of page
+                window.scrollTo({
+                  top: 0,
+                  behavior: "smooth",
+                });
               }}
             >
               Home

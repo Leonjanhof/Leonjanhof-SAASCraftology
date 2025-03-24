@@ -366,7 +366,14 @@ const TestimonialsSection: React.FC = () => {
           </div>
         ) : (
           <div className="col-span-3 text-center py-12">
-            <Star className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <motion.div
+              initial={{ rotate: 0 }}
+              whileInView={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="mx-auto w-fit"
+            >
+              <Star className="h-12 w-12 mx-auto text-green-400 mb-4" />
+            </motion.div>
             <h3 className="text-xl font-medium text-gray-700 mb-2">
               No reviews available
             </h3>

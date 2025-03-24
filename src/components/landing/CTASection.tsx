@@ -42,8 +42,8 @@ const CTASection: React.FC = () => {
             </span>
           </h2>
           <p className="text-xl text-gray-300 mb-10">
-            Join thousands of satisfied users who have transformed their
-            workflow with our automation tools.
+            Join hundreds of satisfied users who have transformed their workflow
+            with our automation tools.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/signup">

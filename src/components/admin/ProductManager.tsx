@@ -332,6 +332,9 @@ const ProductManager = React.forwardRef((props, ref) => {
       setIsDeleting(true);
 
       // Call the delete-product edge function instead of direct database access
+      console.log(
+        `Attempting to delete product with ID: ${productToDelete.id}`,
+      );
       const { data, error } = await supabase.functions.invoke(
         "delete-product",
         {

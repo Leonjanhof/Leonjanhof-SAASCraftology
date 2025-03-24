@@ -263,7 +263,7 @@ const ProductsSection: React.FC = () => {
 
   // Function to format price as currency
   const formatPrice = (price: number) => {
-    return `${price}`;
+    return `€${price}`;
   };
 
   // Function to get the appropriate icon component based on icon name

@@ -9,7 +9,7 @@ import {
 } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import TextAnimation from "./animations/TextAnimation";
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
@@ -365,7 +365,15 @@ const TestimonialsSection: React.FC = () => {
             </div>
           </div>
         ) : (
-          <></>
+          <div className="col-span-3 text-center py-12">
+            <Star className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-xl font-medium text-gray-700 mb-2">
+              No reviews available
+            </h3>
+            <p className="text-gray-500">
+              Reviews will appear here once customers share their experiences.
+            </p>
+          </div>
         )}
       </div>
     </section>

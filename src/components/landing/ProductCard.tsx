@@ -73,6 +73,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               >
                 {icon}
               </motion.div>
+              {/* Display the product title exactly as stored in the database */}
               <CardTitle className="text-white">{title}</CardTitle>
             </div>
             {popular && (

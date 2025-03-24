@@ -311,6 +311,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-xl font-bold text-gray-900">
+            {/* Display the product name exactly as stored in the database */}
             {productName}
           </CardTitle>
           <Badge

@@ -530,15 +530,57 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       }
     }
 
-    // Get the product name from the line items
+    // Get product name from the products table using price_id
     let productName = "";
+    let priceId = "";
 
-    // Try to get product name from the subscription items if we have a subscription
+    // First, try to get the price ID from the subscription
     if (subscriptionId && stripeSubscription?.items?.data?.length > 0) {
-      const priceId = stripeSubscription.items.data[0].price.id;
+      priceId = stripeSubscription.items.data[0].price.id;
       console.log("Price ID from subscription:", priceId);
+    }
 
-      // Map price IDs to product names
+    // If no price ID from subscription, try to get it from line items
+    if (!priceId) {
+      try {
+        console.log("Attempting to get price ID from line items");
+        const lineItems = await stripe.checkout.sessions.listLineItems(
+          session.id,
+        );
+        if (lineItems.data.length > 0 && lineItems.data[0].price) {
+          priceId = lineItems.data[0].price.id;
+          console.log("Price ID from line items:", priceId);
+        }
+      } catch (lineItemError) {
+        console.error("Error fetching line items:", lineItemError);
+      }
+    }
+
+    // If we have a price ID, query the products table to get the official product name
+    if (priceId) {
+      console.log("Querying products table with price_id:", priceId);
+      const { data: productData, error: productError } = await supabaseClient
+        .from("products")
+        .select("name")
+        .eq("price_id", priceId)
+        .maybeSingle();
+
+      if (productError) {
+        console.error("Error fetching product from database:", productError);
+      } else if (productData) {
+        productName = productData.name;
+        console.log("Found product name in database:", productName);
+      }
+    }
+
+    // Fallback: try to get product name from metadata
+    if (!productName) {
+      productName = session.metadata?.product_name || "";
+      console.log("Using product name from metadata:", productName);
+    }
+
+    // Additional fallback: use hardcoded mapping as last resort
+    if (!productName && priceId) {
       const priceToProductMap: Record<string, string> = {
         price_1R1A9uGLqZ8YjU1vEkXXC79n: "Autovoter",
         price_1R1AE1GLqZ8YjU1vUrS3ZSXJ: "Factionsbot 1.18.2",
@@ -546,70 +588,7 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       };
 
       productName = priceToProductMap[priceId] || "";
-      console.log("Mapped product name from subscription:", productName);
-    }
-
-    if (!productName) {
-      // Fallback: try to get product name from metadata
-      productName = session.metadata?.product_name || "";
-      console.log("Product name from metadata:", productName);
-    }
-
-    // Additional fallback: try to get product name from line items
-    if (!productName) {
-      try {
-        console.log("Attempting to get product name from line items");
-        const lineItems = await stripe.checkout.sessions.listLineItems(
-          session.id,
-        );
-        console.log("Line items retrieved:", lineItems.data.length);
-
-        if (lineItems.data.length > 0) {
-          const item = lineItems.data[0];
-          console.log("First line item:", JSON.stringify(item));
-
-          if (item.price && item.price.id) {
-            const priceToProductMap: Record<string, string> = {
-              price_1R1A9uGLqZ8YjU1vEkXXC79n: "Autovoter",
-              price_1R1AE1GLqZ8YjU1vUrS3ZSXJ: "Factionsbot 1.18.2",
-              price_1R1AETGLqZ8YjU1vkuXGLxKY: "EMC captcha solver",
-            };
-
-            productName =
-              priceToProductMap[item.price.id] || item.description || "";
-            console.log("Product name from line items:", productName);
-
-            // If we have a subscription, update its metadata with the product name
-            if (productName && subscriptionId) {
-              const { data: verifySubscription } = await supabaseClient
-                .from("subscriptions")
-                .select("id")
-                .eq("stripe_id", subscriptionId)
-                .single();
-
-              if (verifySubscription) {
-                console.log(
-                  "Updating subscription metadata with product name from line items:",
-                  productName,
-                );
-                await supabaseClient
-                  .from("subscriptions")
-                  .update({
-                    metadata: {
-                      ...(session.metadata || {}),
-                      checkoutSessionId: session.id,
-                      product_name: productName,
-                    },
-                  })
-                  .eq("id", verifySubscription.id);
-              }
-            }
-          }
-        }
-      } catch (lineItemError) {
-        console.error("Error fetching line items:", lineItemError);
-        // Continue with license creation even if line items fetch fails
-      }
+      console.log("Using fallback mapping for product name:", productName);
     }
 
     if (!productName) {
@@ -617,15 +596,6 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       // Use a fallback product name instead of throwing an error
       productName = "Unknown Product";
     }
-
-    // Generate a license key for the product
-    console.log("Generating license key for product:", productName);
-    const productCode = productName
-      .replace(/\s+/g, "")
-      .substring(0, 3)
-      .toUpperCase();
-
-    console.log("Using product code for license generation:", productCode);
 
     // If we have a subscription ID, update its metadata with the product name
     if (subscriptionId) {
@@ -642,6 +612,25 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
         console.log(
           "Successfully updated Stripe subscription metadata with final product_name",
         );
+
+        // Also update the subscription in Supabase to ensure consistency
+        const { error: updateError } = await supabaseClient
+          .from("subscriptions")
+          .update({
+            metadata: {
+              product_name: productName,
+            },
+          })
+          .eq("stripe_id", subscriptionId);
+
+        if (updateError) {
+          console.error(
+            "Error updating subscription metadata in Supabase:",
+            updateError,
+          );
+        } else {
+          console.log("Successfully updated subscription metadata in Supabase");
+        }
       } catch (stripeUpdateError) {
         console.error(
           "Error updating Stripe subscription metadata with final product_name:",
@@ -650,7 +639,35 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       }
     }
 
+    // Generate a license key for the product
+    console.log("Generating license key for product:", productName);
+    let productCode = "";
+
+    // Extract product code from product name
+    if (productName && productName.length > 0) {
+      productCode = productName
+        .replace(/\s+/g, "")
+        .substring(0, 3)
+        .toUpperCase();
+    } else {
+      // Fallback if product name is empty
+      productCode = "UNK"; // Unknown product
+    }
+
+    // Ensure product code is exactly 3 characters
+    if (productCode.length < 3) {
+      productCode = productCode.padEnd(3, "X");
+    } else if (productCode.length > 3) {
+      productCode = productCode.substring(0, 3);
+    }
+
+    console.log("Using product code for license generation:", productCode);
+
     // Call the RPC function to generate a license key
+    console.log(
+      "Calling generate_license_key RPC function with product code:",
+      productCode,
+    );
     const { data: licenseKeyData, error: licenseKeyError } =
       await supabaseClient.rpc("generate_license_key", {
         product_code: productCode,
@@ -694,9 +711,14 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
     } else {
       // Insert the license into the licenses table
       const timestamp = new Date().toISOString();
+      // Generate a UUID for the license
+      const licenseUUID = crypto.randomUUID();
+      console.log("Generated license UUID:", licenseUUID);
+
       const licenseData = {
+        id: licenseUUID, // Use the generated UUID
         user_id: userId,
-        product_name: productName,
+        product_name: productName, // Use the product name from the products table
         license_key: licenseKey,
         active: true,
         created_at: timestamp,

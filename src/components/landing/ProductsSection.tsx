@@ -139,6 +139,35 @@ const ProductsSection: React.FC = () => {
 
       console.log("Fetched products from database:", data ? data.length : 0);
       setProducts(data || []);
+
+      // If we have products, update the plans with the correct price_ids
+      if (data && data.length > 0) {
+        // Create a mapping of price_ids to products
+        const productsByPriceId = data.reduce(
+          (acc, product) => {
+            if (product.price_id) {
+              acc[product.price_id] = product;
+            }
+            return acc;
+          },
+          {} as Record<string, Product>,
+        );
+
+        // Update plans with product information if available
+        const updatedPlans = plans.map((plan) => {
+          const matchingProduct = productsByPriceId[plan.id];
+          if (matchingProduct) {
+            return {
+              ...plan,
+              product: matchingProduct.name,
+              amount: matchingProduct.price,
+            };
+          }
+          return plan;
+        });
+
+        setPlans(updatedPlans);
+      }
     } catch (error) {
       console.error("Failed to fetch products:", error);
       // Don't show error toast in production

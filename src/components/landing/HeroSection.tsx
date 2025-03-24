@@ -51,13 +51,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                 <TextAnimation text="solutions" type="letter" delay={0.6} />
               </span>
             </h1>
-            <p className="text-xl md:text-2xl mb-10 text-gray-300 max-w-2xl mx-auto text-center px-4 whitespace-normal break-words">
-              <TextAnimation
-                text="Craftology Inc.'s automation tools help you work smarter, not harder. Streamline your processes and increase productivity today."
-                type="word"
-                delay={1.2}
-              />
-            </p>
+            <motion.p
+              className="text-xl md:text-2xl mb-10 text-gray-300 max-w-2xl mx-auto text-center px-4 whitespace-normal break-words"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.9 }}
+            >
+              Craftology Inc.'s automation tools help you work smarter, not
+              harder. Streamline your processes and increase productivity today.
+            </motion.p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"

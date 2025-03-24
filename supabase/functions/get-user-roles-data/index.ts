@@ -35,147 +35,152 @@ serve(async (req) => {
       throw new Error("Missing Authorization header");
     }
 
-    // Create a Supabase client with the anon key to verify the JWT token
+    // Create a Supabase client with the service role key for admin operations
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+
+    // Extract token and get user
+    const token = authHeader.replace("Bearer ", "");
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !user) {
+      console.error("User authentication error:", userError);
+      throw new Error("Unauthorized: Invalid user token");
+    }
+
+    console.log("Authenticated user ID:", user.id);
+
+    // Check if user is admin directly from the user_roles table
+    const { data: userRole, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("role_name")
+      .eq("user_id", user.id)
+      .single();
+
+    if (roleError) {
+      console.error("Error fetching user role:", roleError);
+      throw new Error("Error checking user role");
+    }
+
+    console.log("User role:", userRole?.role_name);
+
+    if (!userRole || userRole.role_name !== "admin") {
+      console.error("User is not an admin:", user.id);
+      throw new Error("Unauthorized: Admin access required");
+    }
+
+    // Get search parameters if any
+    const searchQuery = requestData.searchQuery || "";
+    const page = requestData.page || 1;
+    const pageSize = requestData.pageSize || 10;
+    const offset = (page - 1) * pageSize;
+
+    console.log("Fetching user roles with pagination:", {
+      page,
+      pageSize,
+      offset,
+    });
+
+    // Get user roles with user information
     try {
-      console.log("Creating anon client to verify token");
-      const anonClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      console.log("Executing database query...");
+
+      // First, get the total count
+      const { count, error: countError } = await supabaseAdmin
+        .from("user_roles")
+        .select("*", { count: "exact", head: true });
+
+      if (countError) {
+        console.error("Error getting count:", countError);
+        throw countError;
+      }
+
+      console.log("Total user roles count:", count);
+
+      // Then get the actual data
+      const { data: userRolesData, error: rolesError } = await supabaseAdmin
+        .from("user_roles")
+        .select(
+          `
+          id,
+          user_id,
+          role_name,
+          created_at,
+          updated_at
+        `,
+        )
+        .order("created_at", { ascending: false })
+        .range(offset, offset + pageSize - 1);
+
+      if (rolesError) {
+        console.error("Error fetching user roles:", rolesError);
+        throw rolesError;
+      }
+
+      console.log(
+        `Found ${userRolesData ? userRolesData.length : 0} user roles`,
       );
 
-      const token = authHeader.replace("Bearer ", "");
-      console.log("Verifying token...");
-      const {
-        data: { user },
-        error: userError,
-      } = await anonClient.auth.getUser(token);
+      // Get user details for each user_id
+      const userIds = userRolesData.map((role) => role.user_id);
+      const { data: usersData, error: usersError } = await supabaseAdmin
+        .from("users")
+        .select("id, email, full_name")
+        .in("id", userIds);
 
-      if (userError) {
-        console.error("User authentication error:", userError);
-        throw new Error(`Unauthorized: Invalid token - ${userError.message}`);
+      if (usersError) {
+        console.error("Error fetching users:", usersError);
+        throw usersError;
       }
 
-      if (!user) {
-        console.error("No user found with token");
-        throw new Error("Unauthorized: No user found");
+      console.log(`Found ${usersData ? usersData.length : 0} users`);
+
+      // Create a map of user_id to user details
+      const userMap = {};
+      if (usersData) {
+        usersData.forEach((user) => {
+          userMap[user.id] = user;
+        });
       }
 
-      console.log("Authenticated user ID:", user.id);
-
-      // Check if the user is an admin using the anon client (important: use anon client for RPC)
-      console.log("Checking if user is admin using anon client...");
-      try {
-        const { data: isAdmin, error: adminCheckError } = await anonClient.rpc(
-          "is_admin",
-          { user_id: user.id },
-        );
-
-        console.log(
-          "Admin check result:",
-          isAdmin,
-          "Error:",
-          adminCheckError ? adminCheckError.message : "none",
-        );
-
-        if (adminCheckError) {
-          console.error("Admin check error:", adminCheckError);
-          throw new Error(
-            `Error checking admin status: ${adminCheckError.message}`,
-          );
-        }
-
-        if (!isAdmin) {
-          console.log("User is not an admin:", user.id);
-          throw new Error("Unauthorized: Admin access required");
-        }
-      } catch (adminError) {
-        console.error("Error in admin check:", adminError);
-        throw adminError;
-      }
-
-      // Now create a client with the service role key for database operations
-      console.log("Creating service role client for database operations");
-      const serviceClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      );
-
-      // Get search parameters if any
-      const searchQuery = requestData.searchQuery || "";
-      const page = requestData.page || 1;
-      const pageSize = requestData.pageSize || 10;
-      const offset = (page - 1) * pageSize;
-
-      console.log("Fetching user roles with pagination:", {
-        page,
-        pageSize,
-        offset,
-      });
-
-      // Get user roles with user information using service client
-      try {
-        console.log("Executing database query...");
-        const {
-          data: userRoles,
-          error: rolesError,
-          count,
-        } = await serviceClient
-          .from("user_roles")
-          .select(
-            `
-            id,
-            user_id,
-            role_name,
-            created_at,
-            updated_at,
-            users!user_id(full_name, email)
-          `,
-            { count: "exact" },
-          )
-          .order("created_at", { ascending: false })
-          .range(offset, offset + pageSize - 1);
-
-        if (rolesError) {
-          console.error("Error fetching user roles:", rolesError);
-          throw rolesError;
-        }
-
-        console.log(`Found ${userRoles ? userRoles.length : 0} user roles`);
-
-        // Format the response data
-        const formattedUserRoles = userRoles
-          ? userRoles.map((role) => ({
+      // Format the response data
+      const formattedUserRoles = userRolesData
+        ? userRolesData.map((role) => {
+            const user = userMap[role.user_id] || {};
+            return {
               id: role.id,
               user_id: role.user_id,
-              email: role.users?.email || role.user_id,
-              full_name: role.users?.full_name || "N/A",
+              email: user.email || role.user_id,
+              full_name: user.full_name || "N/A",
               role_name: role.role_name || "user",
               created_at: role.created_at,
               updated_at: role.updated_at,
-            }))
-          : [];
+            };
+          })
+        : [];
 
-        console.log("Successfully formatted user roles data");
+      console.log("Successfully formatted user roles data");
 
-        return new Response(
-          JSON.stringify({
-            data: formattedUserRoles,
-            totalCount: count || 0,
-            page,
-            pageSize,
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          },
-        );
-      } catch (queryError) {
-        console.error("Database query error:", queryError);
-        throw new Error(`Database query failed: ${queryError.message}`);
-      }
-    } catch (authError) {
-      console.error("Authentication error:", authError);
-      throw authError;
+      return new Response(
+        JSON.stringify({
+          data: formattedUserRoles,
+          totalCount: count || 0,
+          page,
+          pageSize,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
+    } catch (queryError) {
+      console.error("Database query error:", queryError);
+      throw new Error(`Database query failed: ${queryError.message}`);
     }
   } catch (error) {
     console.error("Error in get-user-roles-data function:", error);

@@ -331,12 +331,21 @@ const ProductManager = React.forwardRef((props, ref) => {
     try {
       setIsDeleting(true);
 
-      const { error } = await supabase
-        .from("products")
-        .delete()
-        .eq("id", productToDelete.id);
+      // Call the delete-product edge function instead of direct database access
+      const { data, error } = await supabase.functions.invoke(
+        "supabase-functions-delete-product",
+        {
+          body: {
+            product_id: productToDelete.id,
+          },
+        },
+      );
 
       if (error) throw error;
+
+      if (data?.success === false) {
+        throw new Error(data.message || "Failed to delete product");
+      }
 
       toast({
         title: "Success",

@@ -89,6 +89,15 @@ serve(async (req) => {
       const idField = product.product_id ? "product_id" : "id";
       const idValue = product.product_id || product.id;
 
+      console.log(`Updating product with ${idField}=${idValue}`, productData);
+
+      // Make sure the ID is included in the productData for the update
+      if (idField === "id") {
+        productData.id = idValue;
+      } else {
+        productData.product_id = idValue;
+      }
+
       result = await supabaseClient
         .from("products")
         .update(productData)

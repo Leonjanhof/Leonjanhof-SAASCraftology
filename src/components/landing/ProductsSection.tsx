@@ -384,9 +384,13 @@ const ProductsSection: React.FC = () => {
             // Display message when no products are available
             <div className="col-span-3 text-center py-12">
               <motion.div
-                initial={{ rotate: 0 }}
-                whileInView={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                animate={{ rotate: 360 }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "linear",
+                  repeatType: "loop",
+                }}
                 className="mx-auto w-fit"
               >
                 <Package className="h-12 w-12 mx-auto text-green-400 mb-4" />

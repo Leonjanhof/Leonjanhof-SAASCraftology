@@ -51,6 +51,20 @@ import {
   DollarSign,
   Tag,
   List,
+  Vote,
+  Bot,
+  ShieldCheck,
+  Zap,
+  Code,
+  Cpu,
+  Database,
+  Globe,
+  Rocket,
+  Server,
+  Terminal,
+  Wrench,
+  Gamepad2,
+  Cog,
 } from "lucide-react";
 
 interface Product {
@@ -515,15 +529,110 @@ const ProductManager = React.forwardRef((props, ref) => {
                 <div className="space-y-2">
                   <Label htmlFor="icon_name" className="flex items-center">
                     <Package className="h-4 w-4 mr-1 text-green-400" />
-                    Icon Name
+                    Icon
                   </Label>
-                  <Input
-                    id="icon_name"
-                    name="icon_name"
+                  <Select
                     value={formData.icon_name}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Package, Vote, ShieldCheck"
-                  />
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, icon_name: value }))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select an icon" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Package">
+                        <div className="flex items-center">
+                          <Package className="h-4 w-4 mr-2" />
+                          <span>Package</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Vote">
+                        <div className="flex items-center">
+                          <Vote className="h-4 w-4 mr-2" />
+                          <span>Vote</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Bot">
+                        <div className="flex items-center">
+                          <Bot className="h-4 w-4 mr-2" />
+                          <span>Bot</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="ShieldCheck">
+                        <div className="flex items-center">
+                          <ShieldCheck className="h-4 w-4 mr-2" />
+                          <span>ShieldCheck</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Zap">
+                        <div className="flex items-center">
+                          <Zap className="h-4 w-4 mr-2" />
+                          <span>Zap</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Code">
+                        <div className="flex items-center">
+                          <Code className="h-4 w-4 mr-2" />
+                          <span>Code</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Cpu">
+                        <div className="flex items-center">
+                          <Cpu className="h-4 w-4 mr-2" />
+                          <span>Cpu</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Database">
+                        <div className="flex items-center">
+                          <Database className="h-4 w-4 mr-2" />
+                          <span>Database</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Globe">
+                        <div className="flex items-center">
+                          <Globe className="h-4 w-4 mr-2" />
+                          <span>Globe</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Rocket">
+                        <div className="flex items-center">
+                          <Rocket className="h-4 w-4 mr-2" />
+                          <span>Rocket</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Server">
+                        <div className="flex items-center">
+                          <Server className="h-4 w-4 mr-2" />
+                          <span>Server</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Terminal">
+                        <div className="flex items-center">
+                          <Terminal className="h-4 w-4 mr-2" />
+                          <span>Terminal</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Wrench">
+                        <div className="flex items-center">
+                          <Wrench className="h-4 w-4 mr-2" />
+                          <span>Wrench</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Gamepad2">
+                        <div className="flex items-center">
+                          <Gamepad2 className="h-4 w-4 mr-2" />
+                          <span>Gamepad</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Cog">
+                        <div className="flex items-center">
+                          <Cog className="h-4 w-4 mr-2" />
+                          <span>Cog</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

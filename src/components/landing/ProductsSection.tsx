@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from "react";
 import ProductCard from "./ProductCard";
-import { Bot, Vote, ShieldCheck, Package } from "lucide-react";
+import {
+  Bot,
+  Vote,
+  ShieldCheck,
+  Package,
+  Zap,
+  Code,
+  Cpu,
+  Database,
+  Globe,
+  Rocket,
+  Server,
+  Terminal,
+  Wrench,
+  Gamepad2,
+  Cog,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../../supabase/auth";
 import { supabase } from "../../../supabase/supabase";
@@ -230,6 +246,28 @@ const ProductsSection: React.FC = () => {
         return <Bot className="h-6 w-6" />;
       case "ShieldCheck":
         return <ShieldCheck className="h-6 w-6" />;
+      case "Zap":
+        return <Zap className="h-6 w-6" />;
+      case "Code":
+        return <Code className="h-6 w-6" />;
+      case "Cpu":
+        return <Cpu className="h-6 w-6" />;
+      case "Database":
+        return <Database className="h-6 w-6" />;
+      case "Globe":
+        return <Globe className="h-6 w-6" />;
+      case "Rocket":
+        return <Rocket className="h-6 w-6" />;
+      case "Server":
+        return <Server className="h-6 w-6" />;
+      case "Terminal":
+        return <Terminal className="h-6 w-6" />;
+      case "Wrench":
+        return <Wrench className="h-6 w-6" />;
+      case "Gamepad2":
+        return <Gamepad2 className="h-6 w-6" />;
+      case "Cog":
+        return <Cog className="h-6 w-6" />;
       case "Package":
       default:
         return <Package className="h-6 w-6" />;

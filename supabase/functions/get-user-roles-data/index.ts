@@ -35,7 +35,7 @@ serve(async (req) => {
       throw new Error("Missing Authorization header");
     }
 
-    // Create a Supabase client with the anon key first to verify the JWT token
+    // Create a Supabase client with the anon key to verify the JWT token
     try {
       console.log("Creating anon client to verify token");
       const anonClient = createClient(
@@ -62,18 +62,13 @@ serve(async (req) => {
 
       console.log("Authenticated user ID:", user.id);
 
-      // Now create a client with the service role key for admin operations
-      console.log("Creating service role client for admin operations");
-      const supabaseClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      );
-
-      // Check if the user is an admin using the RPC function
-      console.log("Checking if user is admin...");
+      // Check if the user is an admin using the anon client (important: use anon client for RPC)
+      console.log("Checking if user is admin using anon client...");
       try {
-        const { data: isAdmin, error: adminCheckError } =
-          await supabaseClient.rpc("is_admin", { user_id: user.id });
+        const { data: isAdmin, error: adminCheckError } = await anonClient.rpc(
+          "is_admin",
+          { user_id: user.id },
+        );
 
         console.log(
           "Admin check result:",
@@ -98,6 +93,13 @@ serve(async (req) => {
         throw adminError;
       }
 
+      // Now create a client with the service role key for database operations
+      console.log("Creating service role client for database operations");
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      );
+
       // Get search parameters if any
       const searchQuery = requestData.searchQuery || "";
       const page = requestData.page || 1;
@@ -110,14 +112,14 @@ serve(async (req) => {
         offset,
       });
 
-      // Get user roles with user information
+      // Get user roles with user information using service client
       try {
         console.log("Executing database query...");
         const {
           data: userRoles,
           error: rolesError,
           count,
-        } = await supabaseClient
+        } = await serviceClient
           .from("user_roles")
           .select(
             `

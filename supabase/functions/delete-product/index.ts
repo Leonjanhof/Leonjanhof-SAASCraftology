@@ -44,6 +44,8 @@ serve(async (req) => {
 
     console.log(`Attempting to delete product with ID: ${product_id}`);
 
+    console.log(`Checking if product exists with ID: ${product_id}`);
+
     // First, check if the product exists
     const { data: existingProduct, error: fetchError } = await supabaseClient
       .from("products")
@@ -82,11 +84,37 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Deleting product with ID: ${product_id}`);
+
     // Delete the product
     const { error: deleteError } = await supabaseClient
       .from("products")
       .delete()
       .eq("id", product_id);
+
+    if (deleteError) {
+      console.error("Error deleting product:", deleteError);
+
+      // If the error is related to column not existing, try with a different column name
+      if (
+        deleteError.message &&
+        deleteError.message.includes("column") &&
+        deleteError.message.includes("does not exist")
+      ) {
+        console.log("Trying alternative column name for deletion");
+        const { error: altDeleteError } = await supabaseClient
+          .from("products")
+          .delete()
+          .eq("product_id", product_id);
+
+        if (!altDeleteError) {
+          console.log("Successfully deleted using alternative column name");
+          deleteError = null; // Clear the error since we succeeded with alternative approach
+        } else {
+          console.error("Alternative deletion also failed:", altDeleteError);
+        }
+      }
+    }
 
     if (deleteError) {
       console.error("Error deleting product:", deleteError);

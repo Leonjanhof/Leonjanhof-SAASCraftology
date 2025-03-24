@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
 serve(async (req) => {
@@ -27,7 +27,23 @@ serve(async (req) => {
     );
 
     // Parse request body
-    const { product_id } = await req.json();
+    let product_id;
+    try {
+      const body = await req.json();
+      product_id = body.product_id;
+    } catch (e) {
+      console.error("Error parsing request body:", e);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Invalid request body",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     // Validate required fields
     if (!product_id) {
@@ -45,34 +61,15 @@ serve(async (req) => {
 
     console.log(`Attempting to delete product with ID: ${product_id}`);
 
-    console.log(`Checking if product exists with ID: ${product_id}`);
-
-    // First, check if the product exists
+    // Check if the product exists using product_id (the only column available)
     const { data: existingProduct, error: fetchError } = await supabaseClient
       .from("products")
       .select("*")
-      .eq("id", product_id)
+      .eq("product_id", product_id)
       .single();
 
     if (fetchError) {
       console.error("Error fetching product:", fetchError);
-
-      // If the error is not a "not found" error, return it
-      if (fetchError.code !== "PGRST116") {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "Error fetching product",
-            error: fetchError.message,
-          }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      // If product not found, return appropriate message
       return new Response(
         JSON.stringify({
           success: false,
@@ -85,37 +82,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Deleting product with ID: ${product_id}`);
-
-    // Delete the product
+    // Delete the product using product_id
     const { error: deleteError } = await supabaseClient
       .from("products")
       .delete()
-      .eq("id", product_id);
-
-    if (deleteError) {
-      console.error("Error deleting product:", deleteError);
-
-      // If the error is related to column not existing, try with a different column name
-      if (
-        deleteError.message &&
-        deleteError.message.includes("column") &&
-        deleteError.message.includes("does not exist")
-      ) {
-        console.log("Trying alternative column name for deletion");
-        const { error: altDeleteError } = await supabaseClient
-          .from("products")
-          .delete()
-          .eq("product_id", product_id);
-
-        if (!altDeleteError) {
-          console.log("Successfully deleted using alternative column name");
-          deleteError = null; // Clear the error since we succeeded with alternative approach
-        } else {
-          console.error("Alternative deletion also failed:", altDeleteError);
-        }
-      }
-    }
+      .eq("product_id", product_id);
 
     if (deleteError) {
       console.error("Error deleting product:", deleteError);
@@ -124,30 +95,12 @@ serve(async (req) => {
           success: false,
           message: "Failed to delete product",
           error: deleteError.message,
-          details: deleteError.details,
         }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
-    }
-
-    // Log the deletion activity
-    try {
-      await supabaseClient.functions.invoke("supabase-functions-log-activity", {
-        body: {
-          event_type: "product_deleted",
-          details: `Product ${existingProduct.name} was deleted`,
-          metadata: {
-            product_id: product_id,
-            product_name: existingProduct.name,
-          },
-        },
-      });
-    } catch (logError) {
-      console.error("Error logging activity:", logError);
-      // Continue execution even if logging fails
     }
 
     return new Response(

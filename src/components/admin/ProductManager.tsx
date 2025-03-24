@@ -335,11 +335,13 @@ const ProductManager = React.forwardRef((props, ref) => {
       console.log(
         `Attempting to delete product with ID: ${productToDelete.id}`,
       );
+
+      // Use the edge function to delete the product
       const { data, error } = await supabase.functions.invoke(
         "delete-product",
         {
           body: {
-            product_id: productToDelete.id,
+            product_id: productToDelete.product_id || productToDelete.id,
           },
         },
       );

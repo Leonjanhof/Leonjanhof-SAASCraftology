@@ -103,13 +103,11 @@ const LicenseManager = React.forwardRef((props, ref) => {
     try {
       setLoading(true);
 
-      // Call the edge function to get licenses data with pagination
-      const { data, error } = await supabase.functions.invoke("get-licenses", {
-        body: {
-          page: currentPage,
-          pageSize: LICENSES_PER_PAGE,
-          searchQuery: searchQuery.trim() !== "" ? searchQuery : undefined,
-        },
+      // Call the database function to get licenses data with pagination
+      const { data, error } = await supabase.rpc("get_licenses", {
+        p_page: currentPage,
+        p_page_size: LICENSES_PER_PAGE,
+        p_search_query: searchQuery.trim() !== "" ? searchQuery : null,
       });
 
       if (error) {
@@ -265,26 +263,20 @@ const LicenseManager = React.forwardRef((props, ref) => {
 
         for (const user of users) {
           try {
-            const licenseData = {
-              userId: user.id,
-              productName: formData.productName,
-              expiresAt: formData.expiryDate
+            // Call the generate_license database function
+            const { data, error } = await supabase.rpc("generate_license", {
+              p_user_id: user.id,
+              p_product_name: formData.productName,
+              p_expires_at: formData.expiryDate
                 ? formData.expiryDate.toISOString()
                 : null,
-            };
+            });
 
-            const { data, error } = await supabase.functions.invoke(
-              "generate-license",
-              {
-                body: licenseData,
-              },
-            );
-
-            if (error || data?.error) {
+            if (error || !data?.success) {
               errorCount++;
               console.error(
                 `Error generating license for ${user.email}:`,
-                error || data?.error,
+                error || data?.message,
               );
             } else {
               successCount++;
@@ -302,26 +294,19 @@ const LicenseManager = React.forwardRef((props, ref) => {
         });
       } else {
         // Generate license for a single user
-        const licenseData = {
-          userId: formData.userId,
-          productName: formData.productName,
-          expiresAt: formData.expiryDate
+        // Call the generate_license database function
+        const { data, error } = await supabase.rpc("generate_license", {
+          p_user_id: formData.userId,
+          p_product_name: formData.productName,
+          p_expires_at: formData.expiryDate
             ? formData.expiryDate.toISOString()
             : null,
-        };
-
-        // Call the generate-license edge function
-        const { data, error } = await supabase.functions.invoke(
-          "generate-license",
-          {
-            body: licenseData,
-          },
-        );
+        });
 
         if (error) throw error;
 
-        if (data?.error) {
-          throw new Error(data.error);
+        if (!data?.success) {
+          throw new Error(data?.message || "Failed to generate license");
         }
 
         toast({
@@ -357,21 +342,16 @@ const LicenseManager = React.forwardRef((props, ref) => {
     try {
       setIsSubmitting(true);
 
-      // Call the extend-license edge function
-      const { data, error } = await supabase.functions.invoke(
-        "extend-license",
-        {
-          body: {
-            licenseId: selectedLicense.id,
-            expiresAt: expiryDate.toISOString(),
-          },
-        },
-      );
+      // Call the extend_license database function
+      const { data, error } = await supabase.rpc("extend_license", {
+        p_license_id: selectedLicense.id,
+        p_expires_at: expiryDate.toISOString(),
+      });
 
       if (error) throw error;
 
-      if (data?.error) {
-        throw new Error(data.error);
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to extend license");
       }
 
       toast({
@@ -399,20 +379,15 @@ const LicenseManager = React.forwardRef((props, ref) => {
     try {
       setIsDeleting(true);
 
-      // Call the delete-license edge function
-      const { data, error } = await supabase.functions.invoke(
-        "delete-license",
-        {
-          body: {
-            licenseId: licenseToDelete.id,
-          },
-        },
-      );
+      // Call the delete_license database function
+      const { data, error } = await supabase.rpc("delete_license", {
+        p_license_id: licenseToDelete.id,
+      });
 
       if (error) throw error;
 
-      if (data?.error) {
-        throw new Error(data.error);
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to delete license");
       }
 
       toast({

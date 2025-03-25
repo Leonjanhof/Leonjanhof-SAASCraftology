@@ -106,19 +106,14 @@ export async function resetHWID(
       return { success: false, message: "User not authenticated" };
     }
 
-    // Call the reset-hwid edge function
-    const { data, error } = await supabase.functions.invoke(
-      "supabase-functions-reset-hwid",
-      {
-        body: {
-          license_id: licenseId,
-          user_id: user.id,
-        },
-      },
-    );
+    // Call the reset_license_hwid database function
+    const { data, error } = await supabase.rpc("reset_license_hwid", {
+      p_license_id: licenseId,
+      p_user_id: user.id,
+    });
 
     if (error) {
-      console.error("Error calling reset-hwid function:", error);
+      console.error("Error calling reset_license_hwid function:", error);
       return {
         success: false,
         message: error.message || "Failed to reset HWID",

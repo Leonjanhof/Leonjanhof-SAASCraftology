@@ -337,11 +337,40 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_license: {
+        Args: {
+          p_license_id: string
+        }
+        Returns: Json
+      }
+      extend_license: {
+        Args: {
+          p_license_id: string
+          p_expires_at: string
+        }
+        Returns: Json
+      }
+      generate_license: {
+        Args: {
+          p_user_id: string
+          p_product_name: string
+          p_expires_at?: string
+        }
+        Returns: Json
+      }
       generate_license_key: {
         Args: {
           product_code: string
         }
         Returns: string
+      }
+      get_licenses: {
+        Args: {
+          p_page?: number
+          p_page_size?: number
+          p_search_query?: string
+        }
+        Returns: Json
       }
       get_user_permissions: {
         Args: {
@@ -366,6 +395,13 @@ export type Database = {
           admin_user_id: string
           target_user_email: string
           new_role: string
+        }
+        Returns: Json
+      }
+      reset_license_hwid: {
+        Args: {
+          p_license_id: string
+          p_user_id: string
         }
         Returns: Json
       }

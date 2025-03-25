@@ -43,7 +43,15 @@ const Testimonial: React.FC<
         cursor: "grab",
       }}
       whileTap={{ cursor: "grabbing" }}
-      whileHover={{ scale: 1.03 }}
+      whileHover={{
+        scale: 1.08,
+        zIndex: 10,
+        transition: {
+          type: "spring",
+          stiffness: 300,
+          damping: 15,
+        },
+      }}
       onDragEnd={(_, info) => {
         if (onDragEnd) onDragEnd(info);
         controls.start({
@@ -51,9 +59,9 @@ const Testimonial: React.FC<
           transition: { type: "spring", stiffness: 300, damping: 20 },
         });
       }}
-      className="h-full w-full px-2 snap-center"
+      className="h-full w-full px-2 snap-center relative"
     >
-      <Card className="h-full shadow-lg hover:shadow-xl transition-shadow">
+      <Card className="h-full shadow-lg hover:shadow-xl transition-all duration-300 hover:shadow-2xl">
         <CardContent className="p-6">
           <div className="flex mb-4">
             {[...Array(5)].map((_, i) => (

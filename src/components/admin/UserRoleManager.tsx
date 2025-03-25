@@ -360,47 +360,7 @@ const UserRoleManager = React.forwardRef((props, ref) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium">User Email</label>
-              <Input
-                placeholder="user@example.com"
-                value={targetEmail}
-                onChange={(e) => setTargetEmail(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Role</label>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button
-                onClick={handleUpdateRole}
-                disabled={isSubmitting || !targetEmail}
-                className="w-full"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>Update Role</>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-8">
+          <div className="mt-0">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Current Users</h3>
               <div className="flex items-center space-x-2">

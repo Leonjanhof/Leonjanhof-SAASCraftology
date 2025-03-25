@@ -164,7 +164,7 @@ const UserRoleManager = React.forwardRef((props, ref) => {
         "supabase-functions-manage-user-role",
         {
           body: {
-            userId: selectedUserForRoleChange.user_id,
+            targetUserEmail: selectedUserForRoleChange.email,
             newRole: newRoleValue,
           },
         },

@@ -63,6 +63,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface License {
   id: string;
@@ -121,6 +122,9 @@ const LicenseManager = React.forwardRef((props, ref) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLicense, setSelectedLicense] = useState<License | null>(null);
   const [expiryDate, setExpiryDate] = useState<Date | undefined>(undefined);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [selectAllUsers, setSelectAllUsers] = useState(false);
 
   // Form data for new license
   const [formData, setFormData] = useState({
@@ -156,6 +160,20 @@ const LicenseManager = React.forwardRef((props, ref) => {
       setFilteredLicenses(filtered);
     }
   }, [searchQuery, licenses]);
+
+  // Filter users based on search query
+  useEffect(() => {
+    if (userSearchQuery.trim() === "") {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(
+        (user) =>
+          user.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+          user.full_name.toLowerCase().includes(userSearchQuery.toLowerCase()),
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [userSearchQuery, users]);
 
   useEffect(() => {
     setTotalPages(Math.max(1, Math.ceil(totalCount / LICENSES_PER_PAGE)));
@@ -242,6 +260,7 @@ const LicenseManager = React.forwardRef((props, ref) => {
       if (error) throw error;
 
       setUsers(data?.data || []);
+      setFilteredUsers(data?.data || []);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({
@@ -269,6 +288,8 @@ const LicenseManager = React.forwardRef((props, ref) => {
       productName: "",
       expiryDate: undefined,
     });
+    setUserSearchQuery("");
+    setSelectAllUsers(false);
   };
 
   const handleOpenDialog = () => {
@@ -298,10 +319,10 @@ const LicenseManager = React.forwardRef((props, ref) => {
   };
 
   const validateForm = () => {
-    if (!formData.userId) {
+    if (!selectAllUsers && !formData.userId) {
       toast({
         title: "Validation Error",
-        description: "Please select a user",
+        description: "Please select a user or check 'All Users'",
         variant: "destructive",
       });
       return false;
@@ -325,32 +346,77 @@ const LicenseManager = React.forwardRef((props, ref) => {
     try {
       setIsSubmitting(true);
 
-      const licenseData = {
-        userId: formData.userId,
-        productName: formData.productName,
-        expiresAt: formData.expiryDate
-          ? formData.expiryDate.toISOString()
-          : null,
-      };
+      if (selectAllUsers) {
+        // Generate licenses for all users
+        let successCount = 0;
+        let errorCount = 0;
 
-      // Call the generate-license edge function
-      const { data, error } = await supabase.functions.invoke(
-        "supabase-functions-generate-license",
-        {
-          body: licenseData,
-        },
-      );
+        for (const user of users) {
+          try {
+            const licenseData = {
+              userId: user.id,
+              productName: formData.productName,
+              expiresAt: formData.expiryDate
+                ? formData.expiryDate.toISOString()
+                : null,
+            };
 
-      if (error) throw error;
+            const { data, error } = await supabase.functions.invoke(
+              "supabase-functions-generate-license",
+              {
+                body: licenseData,
+              },
+            );
 
-      if (data?.error) {
-        throw new Error(data.error);
+            if (error || data?.error) {
+              errorCount++;
+              console.error(
+                `Error generating license for ${user.email}:`,
+                error || data?.error,
+              );
+            } else {
+              successCount++;
+            }
+          } catch (err) {
+            errorCount++;
+            console.error(`Error generating license for ${user.email}:`, err);
+          }
+        }
+
+        toast({
+          title: "Bulk License Generation",
+          description: `Successfully generated ${successCount} licenses. Failed: ${errorCount}`,
+          variant: errorCount > 0 ? "default" : "default",
+        });
+      } else {
+        // Generate license for a single user
+        const licenseData = {
+          userId: formData.userId,
+          productName: formData.productName,
+          expiresAt: formData.expiryDate
+            ? formData.expiryDate.toISOString()
+            : null,
+        };
+
+        // Call the generate-license edge function
+        const { data, error } = await supabase.functions.invoke(
+          "supabase-functions-generate-license",
+          {
+            body: licenseData,
+          },
+        );
+
+        if (error) throw error;
+
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+
+        toast({
+          title: "Success",
+          description: "License generated successfully",
+        });
       }
-
-      toast({
-        title: "Success",
-        description: "License generated successfully",
-      });
 
       handleCloseDialog();
       fetchLicenses();
@@ -679,30 +745,66 @@ const LicenseManager = React.forwardRef((props, ref) => {
 
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="userId">
-                  <div className="flex items-center">
-                    User
-                    {loadingUsers && (
-                      <Loader2 className="ml-2 h-3 w-3 animate-spin" />
+                <div className="flex items-center space-x-2 mb-2">
+                  <Checkbox
+                    id="selectAllUsers"
+                    checked={selectAllUsers}
+                    onCheckedChange={(checked) => {
+                      setSelectAllUsers(checked === true);
+                      if (checked) {
+                        setFormData((prev) => ({ ...prev, userId: "" }));
+                      }
+                    }}
+                  />
+                  <Label htmlFor="selectAllUsers" className="cursor-pointer">
+                    Generate for all users
+                  </Label>
+                </div>
+
+                {!selectAllUsers && (
+                  <>
+                    <Label htmlFor="userId">
+                      <div className="flex items-center">
+                        User
+                        {loadingUsers && (
+                          <Loader2 className="ml-2 h-3 w-3 animate-spin" />
+                        )}
+                      </div>
+                    </Label>
+                    <div className="relative mb-2">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search by email or name"
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                    <Select
+                      value={formData.userId}
+                      onValueChange={(value) =>
+                        handleSelectChange("userId", value)
+                      }
+                      disabled={loadingUsers || selectAllUsers}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.email} ({user.full_name})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {filteredUsers.length === 0 && userSearchQuery && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        No users found matching your search
+                      </p>
                     )}
-                  </div>
-                </Label>
-                <Select
-                  value={formData.userId}
-                  onValueChange={(value) => handleSelectChange("userId", value)}
-                  disabled={loadingUsers}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.email} ({user.full_name})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  </>
+                )}
               </div>
 
               <div className="space-y-2">

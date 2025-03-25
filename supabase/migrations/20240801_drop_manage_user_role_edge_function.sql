@@ -1,0 +1,3 @@
+-- This migration removes the manage-user-role edge function since it's been replaced by a database function
+-- No SQL needed here as edge functions are managed separately from the database
+-- This file serves as documentation of the change

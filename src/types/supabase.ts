@@ -361,6 +361,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      manage_user_role: {
+        Args: {
+          admin_user_id: string
+          target_user_email: string
+          new_role: string
+        }
+        Returns: Json
+      }
       user_has_permission: {
         Args: {
           user_uuid: string

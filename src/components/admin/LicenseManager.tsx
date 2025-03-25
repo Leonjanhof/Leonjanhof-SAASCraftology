@@ -184,16 +184,13 @@ const LicenseManager = React.forwardRef((props, ref) => {
       setLoading(true);
 
       // Call the edge function to get licenses data with pagination
-      const { data, error } = await supabase.functions.invoke(
-        "supabase-functions-get-licenses",
-        {
-          body: {
-            page: currentPage,
-            pageSize: LICENSES_PER_PAGE,
-            searchQuery: searchQuery.trim() !== "" ? searchQuery : undefined,
-          },
+      const { data, error } = await supabase.functions.invoke("get-licenses", {
+        body: {
+          page: currentPage,
+          pageSize: LICENSES_PER_PAGE,
+          searchQuery: searchQuery.trim() !== "" ? searchQuery : undefined,
         },
-      );
+      });
 
       if (error) {
         throw error;
@@ -248,7 +245,7 @@ const LicenseManager = React.forwardRef((props, ref) => {
     try {
       setLoadingUsers(true);
       const { data, error } = await supabase.functions.invoke(
-        "supabase-functions-get-user-roles-data",
+        "get-user-roles-data",
         {
           body: {
             page: 1,
@@ -362,7 +359,7 @@ const LicenseManager = React.forwardRef((props, ref) => {
             };
 
             const { data, error } = await supabase.functions.invoke(
-              "supabase-functions-generate-license",
+              "generate-license",
               {
                 body: licenseData,
               },
@@ -400,7 +397,7 @@ const LicenseManager = React.forwardRef((props, ref) => {
 
         // Call the generate-license edge function
         const { data, error } = await supabase.functions.invoke(
-          "supabase-functions-generate-license",
+          "generate-license",
           {
             body: licenseData,
           },
@@ -447,7 +444,7 @@ const LicenseManager = React.forwardRef((props, ref) => {
 
       // Call the extend-license edge function
       const { data, error } = await supabase.functions.invoke(
-        "supabase-functions-extend-license",
+        "extend-license",
         {
           body: {
             licenseId: selectedLicense.id,
@@ -489,7 +486,7 @@ const LicenseManager = React.forwardRef((props, ref) => {
 
       // Call the delete-license edge function
       const { data, error } = await supabase.functions.invoke(
-        "supabase-functions-delete-license",
+        "delete-license",
         {
           body: {
             licenseId: licenseToDelete.id,

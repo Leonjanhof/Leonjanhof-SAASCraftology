@@ -162,20 +162,25 @@ const LicenseManager = React.forwardRef((props, ref) => {
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true);
-      const { data, error } = await supabase.functions.invoke(
-        "get-user-roles-data",
-        {
-          body: {
-            page: 1,
-            pageSize: 100, // Get a reasonable number of users
-          },
-        },
-      );
+      // Use the database function to get user roles data
+      const { data, error } = await supabase.rpc("get_user_roles", {
+        p_page: 1,
+        p_page_size: 100, // Get a reasonable number of users
+      });
 
       if (error) throw error;
 
-      setUsers(data?.data || []);
-      setFilteredUsers(data?.data || []);
+      // Transform the data to match the expected format
+      const formattedUsers =
+        data?.data?.map((user) => ({
+          id: user.user_id,
+          email: user.email,
+          full_name: user.full_name,
+          role_name: user.role_name,
+        })) || [];
+
+      setUsers(formattedUsers);
+      setFilteredUsers(formattedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({

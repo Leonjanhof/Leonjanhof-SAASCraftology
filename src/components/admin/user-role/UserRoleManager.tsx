@@ -122,6 +122,7 @@ const UserRoleManager = React.forwardRef((props, ref) => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // Call the manage_user_role database function
       const { data, error } = await supabase.rpc("manage_user_role", {
         admin_user_id: user.id,
         target_user_email: targetEmail,
@@ -130,13 +131,9 @@ const UserRoleManager = React.forwardRef((props, ref) => {
 
       if (error) throw error;
 
-      if (data && !data.success) {
-        throw new Error(data.message || "Failed to update user role");
-      }
-
       toast({
         title: "Success",
-        description: data?.message || `User role updated to ${selectedRole}`,
+        description: `User role updated to ${selectedRole}`,
         variant: "default",
       });
 
@@ -174,6 +171,7 @@ const UserRoleManager = React.forwardRef((props, ref) => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // Call the manage_user_role database function instead of the edge function
       const { data, error } = await supabase.rpc("manage_user_role", {
         admin_user_id: user.id,
         target_user_email: selectedUserForRoleChange.email,
@@ -182,13 +180,9 @@ const UserRoleManager = React.forwardRef((props, ref) => {
 
       if (error) throw error;
 
-      if (data && !data.success) {
-        throw new Error(data.message || "Failed to update user role");
-      }
-
       toast({
         title: "Success",
-        description: data?.message || `User role updated to ${newRoleValue}`,
+        description: `User role updated to ${newRoleValue}`,
         variant: "default",
       });
 

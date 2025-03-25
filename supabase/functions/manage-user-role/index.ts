@@ -71,16 +71,18 @@ serve(async (req) => {
       throw new Error("Invalid role: must be 'user' or 'admin'");
     }
 
+    console.log(`Looking up user with email: ${targetUserEmail}`);
+
     // First, get the user ID from the email
-    const { data: userData, error: userError } = await supabaseClient
+    const { data: userData, error: userLookupError } = await supabaseClient
       .from("users")
       .select("id")
       .eq("email", targetUserEmail)
       .single();
 
-    if (userError) {
-      console.error("Error finding user:", userError);
-      throw new Error(`Error finding user: ${userError.message}`);
+    if (userLookupError) {
+      console.error("Error finding user:", userLookupError);
+      throw new Error(`Error finding user: ${userLookupError.message}`);
     }
 
     if (!userData) {
@@ -88,23 +90,65 @@ serve(async (req) => {
       throw new Error(`User with email ${targetUserEmail} not found`);
     }
 
-    // Call the database function to create/update the user role
-    const { data: result, error: fnError } = await supabaseClient.rpc(
-      "create_user_role",
-      {
-        user_id_param: userData.id,
-        role_name_param: newRole,
-      },
-    );
+    console.log(`Found user ID: ${userData.id} for email: ${targetUserEmail}`);
 
-    if (fnError) {
-      throw new Error(`Failed to update user role: ${fnError.message}`);
+    // Check if user already has a role
+    const { data: existingRole, error: existingRoleError } =
+      await supabaseClient
+        .from("user_roles")
+        .select("*")
+        .eq("user_id", userData.id)
+        .single();
+
+    let result;
+    if (existingRoleError && existingRoleError.code !== "PGRST116") {
+      // Error other than "no rows returned"
+      throw new Error(
+        `Error checking existing role: ${existingRoleError.message}`,
+      );
     }
+
+    if (existingRole) {
+      // Update existing role
+      console.log(
+        `Updating existing role for user ${userData.id} to ${newRole}`,
+      );
+      const { data: updateResult, error: updateError } = await supabaseClient
+        .from("user_roles")
+        .update({ role_name: newRole, updated_at: new Date().toISOString() })
+        .eq("user_id", userData.id)
+        .select();
+
+      if (updateError) {
+        throw new Error(`Failed to update user role: ${updateError.message}`);
+      }
+      result = updateResult;
+    } else {
+      // Create new role
+      console.log(`Creating new role for user ${userData.id} as ${newRole}`);
+      const { data: insertResult, error: insertError } = await supabaseClient
+        .from("user_roles")
+        .insert({
+          user_id: userData.id,
+          role_name: newRole,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select();
+
+      if (insertError) {
+        throw new Error(`Failed to create user role: ${insertError.message}`);
+      }
+      result = insertResult;
+    }
+
+    console.log(`Role operation successful:`, result);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: `User ${targetUserEmail} role updated to ${newRole}`,
+        data: result,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

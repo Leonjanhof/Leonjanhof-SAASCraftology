@@ -78,7 +78,13 @@ serve(async (req) => {
       .eq("email", targetUserEmail)
       .single();
 
-    if (userError || !userData) {
+    if (userError) {
+      console.error("Error finding user:", userError);
+      throw new Error(`Error finding user: ${userError.message}`);
+    }
+
+    if (!userData) {
+      console.error(`User with email ${targetUserEmail} not found`);
       throw new Error(`User with email ${targetUserEmail} not found`);
     }
 
@@ -111,6 +117,7 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         message: error.message || "An unexpected error occurred",
+        details: error.stack || "No stack trace available",
       }),
       {
         status: 400,

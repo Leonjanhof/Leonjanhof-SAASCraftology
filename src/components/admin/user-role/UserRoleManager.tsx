@@ -115,6 +115,13 @@ const UserRoleManager = React.forwardRef((props, ref) => {
 
     try {
       setIsSubmitting(true);
+
+      // Get the current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
       const { data, error } = await supabase.rpc("manage_user_role", {
         admin_user_id: user.id,
         target_user_email: targetEmail,
@@ -161,6 +168,12 @@ const UserRoleManager = React.forwardRef((props, ref) => {
     try {
       setIsUpdatingRole(true);
 
+      // Get the current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
       const { data, error } = await supabase.rpc("manage_user_role", {
         admin_user_id: user.id,
         target_user_email: selectedUserForRoleChange.email,
@@ -169,9 +182,13 @@ const UserRoleManager = React.forwardRef((props, ref) => {
 
       if (error) throw error;
 
+      if (data && !data.success) {
+        throw new Error(data.message || "Failed to update user role");
+      }
+
       toast({
         title: "Success",
-        description: `User role updated to ${newRoleValue}`,
+        description: data?.message || `User role updated to ${newRoleValue}`,
         variant: "default",
       });
 
@@ -181,7 +198,8 @@ const UserRoleManager = React.forwardRef((props, ref) => {
       console.error("Error updating user role:", error);
       toast({
         title: "Error",
-        description: "Failed to update user role. Please try again.",
+        description:
+          error.message || "Failed to update user role. Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -45,7 +45,7 @@ const Testimonial: React.FC<
       whileTap={{ cursor: "grabbing" }}
       whileHover={{
         scale: 1.08,
-        zIndex: 10,
+        zIndex: 50,
         transition: {
           type: "spring",
           stiffness: 300,
@@ -59,7 +59,7 @@ const Testimonial: React.FC<
           transition: { type: "spring", stiffness: 300, damping: 20 },
         });
       }}
-      className="h-full w-full px-2 snap-center relative"
+      className="h-full w-full px-2 snap-center relative z-10"
     >
       <Card className="h-full shadow-lg hover:shadow-xl transition-all duration-300 hover:shadow-2xl">
         <CardContent className="p-6">
@@ -270,7 +270,7 @@ const TestimonialsSection: React.FC = () => {
   }, [currentIndex, testimonials.length]);
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-20 bg-white relative z-0">
       <div className="container px-4 mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 flex flex-col sm:flex-row items-center justify-center gap-2">
@@ -294,7 +294,7 @@ const TestimonialsSection: React.FC = () => {
         </div>
 
         {testimonials.length > 0 ? (
-          <div className="relative">
+          <div className="relative z-0">
             <div className="overflow-hidden">
               <motion.div
                 ref={carouselRef}

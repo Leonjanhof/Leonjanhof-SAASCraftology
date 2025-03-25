@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           active: boolean | null
           created_at: string | null
+          expires_at: string | null
           hwid: string | null
           id: string
           last_reset_date: string | null
@@ -24,6 +25,7 @@ export type Database = {
         Insert: {
           active?: boolean | null
           created_at?: string | null
+          expires_at?: string | null
           hwid?: string | null
           id?: string
           last_reset_date?: string | null
@@ -35,6 +37,7 @@ export type Database = {
         Update: {
           active?: boolean | null
           created_at?: string | null
+          expires_at?: string | null
           hwid?: string | null
           id?: string
           last_reset_date?: string | null
@@ -51,12 +54,12 @@ export type Database = {
           description: string
           features: string[]
           icon_name: string
-          id: string
           is_popular: boolean
           is_subscription: boolean
           name: string
           price: number
           price_id: string
+          product_id: string
           updated_at: string | null
         }
         Insert: {
@@ -64,12 +67,12 @@ export type Database = {
           description: string
           features?: string[]
           icon_name?: string
-          id?: string
           is_popular?: boolean
           is_subscription?: boolean
           name: string
           price: number
           price_id: string
+          product_id?: string
           updated_at?: string | null
         }
         Update: {
@@ -77,12 +80,12 @@ export type Database = {
           description?: string
           features?: string[]
           icon_name?: string
-          id?: string
           is_popular?: boolean
           is_subscription?: boolean
           name?: string
           price?: number
           price_id?: string
+          product_id?: string
           updated_at?: string | null
         }
         Relationships: []

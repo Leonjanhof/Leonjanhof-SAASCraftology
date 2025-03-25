@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import UserRoleManager from "../admin/UserRoleManager";
 import ProductManager from "../admin/ProductManager";
+import LicenseManager from "../admin/LicenseManager";
 import { supabase } from "../../../supabase/supabase";
 import { checkSupabaseConnection } from "../../../supabase/supabase";
 import { useToast } from "@/components/ui/use-toast";
@@ -136,6 +137,7 @@ export default function AdminDashboardStoryboard() {
   // Create references to the components
   const userRoleManagerRef = React.useRef(null);
   const productManagerRef = React.useRef(null);
+  const licenseManagerRef = React.useRef(null);
 
   const handleRefresh = () => {
     // Determine what to refresh based on the active tab
@@ -187,12 +189,23 @@ export default function AdminDashboardStoryboard() {
         }
         break;
       case "licenses":
-        // For now, just refresh the stats as license management is not implemented yet
-        fetchStats();
-        toast({
-          title: "Refreshing",
-          description: "License data is being updated",
-        });
+        // Access the LicenseManager component and call its fetchLicenses method
+        if (
+          licenseManagerRef.current &&
+          licenseManagerRef.current.fetchLicenses
+        ) {
+          licenseManagerRef.current.fetchLicenses();
+          toast({
+            title: "Refreshing",
+            description: "License data is being updated",
+          });
+        } else {
+          toast({
+            title: "Refreshing",
+            description: "License data is being updated",
+          });
+          fetchStats();
+        }
         break;
       case "settings":
         // For now, just refresh the system status
@@ -461,16 +474,9 @@ export default function AdminDashboardStoryboard() {
           </TabsContent>
 
           <TabsContent value="licenses" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>License Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-500">
-                  License management tools will be available here.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 gap-6">
+              <LicenseManager ref={licenseManagerRef} />
+            </div>
           </TabsContent>
 
           <TabsContent value="settings" className="mt-6">

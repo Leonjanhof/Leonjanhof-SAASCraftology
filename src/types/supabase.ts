@@ -343,6 +343,12 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_product: {
+        Args: {
+          p_product_name: string
+        }
+        Returns: Json
+      }
       extend_license: {
         Args: {
           p_license_id: string

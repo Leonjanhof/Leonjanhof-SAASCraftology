@@ -247,12 +247,12 @@ const ProductManager = React.forwardRef((props, ref) => {
       setIsDeleting(true);
 
       console.log(
-        `Attempting to delete product with ID: ${productToDelete.id}`,
+        `Attempting to delete product with name: ${productToDelete.name}`,
       );
 
-      // Use the database function to delete the product
+      // Use the database function to delete the product by name
       const { data, error } = await supabase.rpc("delete_product", {
-        p_product_id: productToDelete.product_id || productToDelete.id,
+        p_product_name: productToDelete.name,
       });
 
       if (error) throw error;

@@ -246,25 +246,19 @@ const ProductManager = React.forwardRef((props, ref) => {
     try {
       setIsDeleting(true);
 
-      // Call the delete-product edge function instead of direct database access
       console.log(
         `Attempting to delete product with ID: ${productToDelete.id}`,
       );
 
-      // Use the edge function to delete the product
-      const { data, error } = await supabase.functions.invoke(
-        "delete-product",
-        {
-          body: {
-            product_id: productToDelete.product_id || productToDelete.id,
-          },
-        },
-      );
+      // Use the database function to delete the product
+      const { data, error } = await supabase.rpc("delete_product", {
+        p_product_id: productToDelete.product_id || productToDelete.id,
+      });
 
       if (error) throw error;
 
-      if (data?.success === false) {
-        throw new Error(data.message || "Failed to delete product");
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to delete product");
       }
 
       toast({

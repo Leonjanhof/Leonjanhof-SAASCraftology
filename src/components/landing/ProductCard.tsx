@@ -20,7 +20,6 @@ export interface ProductCardProps {
   icon: React.ReactNode;
   accentColor: string;
   popular?: boolean;
-  isSubscription?: boolean;
   onClick?: () => void;
   isLoading?: boolean;
 }
@@ -33,7 +32,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
   icon,
   accentColor,
   popular = false,
-  isSubscription = true,
   onClick,
   isLoading = false,
 }) => {
@@ -91,11 +89,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <CardContent className="flex-grow">
           <div className="mb-4">
             <span className="text-3xl font-bold text-white">{price}</span>
-            {isSubscription ? (
-              <span className="text-gray-400 ml-1">/month</span>
-            ) : (
-              <span className="text-gray-400 ml-1">one-time</span>
-            )}
+            <span className="text-gray-400 ml-1">/month</span>
           </div>
           <ul className="space-y-2">
             {features.map((feature, index) => (

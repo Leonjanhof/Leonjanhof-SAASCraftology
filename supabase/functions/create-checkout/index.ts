@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@13.6.0?target=deno";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2023-10-16",
@@ -35,33 +34,7 @@ serve(async (req) => {
 
     const productName = priceToProductMap[price_id] || "";
 
-    // Get product details to check if it's a subscription or one-time purchase
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_KEY") ?? "",
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
-
-    // Fetch product details from the database
-    const { data: productData, error: productError } = await supabaseClient
-      .from("products")
-      .select("is_subscription")
-      .eq("price_id", price_id)
-      .single();
-
-    if (productError) {
-      console.error("Error fetching product details:", productError);
-    }
-
-    // Determine if this is a subscription or one-time purchase
-    const isSubscription = productData?.is_subscription ?? true; // Default to subscription if not found
-
-    // Create Stripe checkout session with the appropriate mode
+    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -70,14 +43,13 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: isSubscription ? "subscription" : "payment",
+      mode: "subscription",
       success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${return_url}?canceled=true`,
       customer_email: req.headers.get("X-Customer-Email"),
       metadata: {
         user_id,
-        product_name: productName,
-        is_subscription: isSubscription.toString(),
+        product_name: productName, // Add product name to metadata
       },
     });
 

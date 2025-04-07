@@ -1,11 +1,24 @@
-import React from "react";
+import React, { useState } from "react";
 import GearsBackground from "../dashboard/GearsBackground";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
+import { ProfileGrid, ProfileProps } from "../profiles";
 
 const ProfilesPage = () => {
+  const [profiles, setProfiles] = useState<ProfileProps[]>([]);
+
   const openDiscord = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");
+  };
+
+  const addProfile = () => {
+    const newProfile: ProfileProps = {
+      id: `profile-${profiles.length + 1}`,
+      name: `Profile ${profiles.length + 1}`,
+      createdAt: new Date(),
+    };
+    setProfiles([...profiles, newProfile]);
   };
 
   return (
@@ -74,20 +87,7 @@ const ProfilesPage = () => {
               className="text-white h-9 w-9 p-0 flex items-center justify-center rounded-md group relative overflow-hidden"
             >
               <span className="relative z-10 transition-colors duration-300">
-                <svg
-                  className="h-5 w-5 transition-colors duration-300 group-hover:text-green-400"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
-                  />
-                </svg>
+                <ArrowLeft className="h-5 w-5 transition-colors duration-300 group-hover:text-green-400" />
               </span>
               <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
             </Button>
@@ -110,9 +110,7 @@ const ProfilesPage = () => {
           </div>
         </div>
 
-        <div className="text-center py-12">
-          <p className="text-gray-600 mb-4">Your profiles will appear here.</p>
-        </div>
+        <ProfileGrid profiles={profiles} onAddProfile={addProfile} />
       </div>
     </div>
   );

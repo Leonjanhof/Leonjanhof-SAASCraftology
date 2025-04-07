@@ -67,10 +67,14 @@ const ProfileCreationPage = () => {
         navigate("/profiles");
         break;
       case "accounts":
-        setCurrentStep("initial");
+        if (initialFormData.mode === "voting") {
+          setCurrentStep("initial");
+        } else {
+          setCurrentStep("hub");
+        }
         break;
       case "hub":
-        setCurrentStep("accounts");
+        setCurrentStep("initial");
         break;
       case "afk":
         setCurrentStep("hub");

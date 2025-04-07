@@ -59,7 +59,7 @@ const InitialProfileSetupForm = () => {
       <div className="space-y-6">
         {/* Profile Name */}
         <div className="space-y-2">
-          <Label htmlFor="profileName">Profile Name</Label>
+          <Label htmlFor="profileName">Profile name</Label>
           <Input
             id="profileName"
             name="profileName"
@@ -72,7 +72,7 @@ const InitialProfileSetupForm = () => {
 
         {/* Server Address */}
         <div className="space-y-2">
-          <Label htmlFor="serverAddress">Server Address</Label>
+          <Label htmlFor="serverAddress">Server address</Label>
           <div className="relative">
             <Input
               id="serverAddress"
@@ -92,7 +92,7 @@ const InitialProfileSetupForm = () => {
 
         {/* Protocol Selection */}
         <div className="space-y-2">
-          <Label htmlFor="protocol">Select Protocol</Label>
+          <Label htmlFor="protocol">Select protocol</Label>
           <Select
             value={formData.protocol}
             onValueChange={(value) => handleSelectChange("protocol", value)}
@@ -203,7 +203,7 @@ const InitialProfileSetupForm = () => {
 
         {/* Mode Selection */}
         <div className="space-y-2">
-          <Label htmlFor="mode">Select Mode</Label>
+          <Label htmlFor="mode">Select mode</Label>
           <Select
             value={formData.mode}
             onValueChange={(value) => handleSelectChange("mode", value)}

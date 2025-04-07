@@ -2,31 +2,51 @@ import React, { useState } from "react";
 import GearsBackground from "../dashboard/GearsBackground";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus } from "lucide-react";
-import { ProfileGrid, ProfileProps } from "../profiles";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-const ProfilesPage = () => {
-  const [profiles, setProfiles] = useState<ProfileProps[]>([]);
+const ProfileCreationPage = () => {
   const navigate = useNavigate();
+  const [profileName, setProfileName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const openDiscord = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");
   };
 
-  const addProfile = () => {
-    // Navigate to profile creation page
-    navigate("/profile/create");
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-  // This function will be used when returning from the creation page with a new profile
-  const handleAddNewProfile = (name: string) => {
-    const newProfile: ProfileProps = {
-      id: `profile-${profiles.length + 1}`,
-      name: name,
-      createdAt: new Date(),
-    };
-    setProfiles([...profiles, newProfile]);
+    if (!profileName.trim()) {
+      setError("Profile name is required");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Simulate API call with timeout
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Navigate back to profiles page after successful creation
+      navigate("/profiles");
+    } catch (err) {
+      console.error("Error creating profile:", err);
+      setError("Failed to create profile. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -41,7 +61,7 @@ const ProfilesPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              {"Your profiles".split(" ").map((word, wordIndex) => (
+              {"Profile creation".split(" ").map((word, wordIndex) => (
                 <span key={wordIndex} className="inline-block">
                   {word.split("").map((letter, index) => (
                     <motion.span
@@ -65,33 +85,11 @@ const ProfilesPage = () => {
                 </span>
               ))}
             </motion.h1>
-            <p className="text-gray-600">Manage your profiles</p>
+            <p className="text-gray-600">Create a profile</p>
           </div>
           <div className="flex items-center space-x-2">
             <Button
-              onClick={() => (window.location.href = "/")}
-              className="text-white h-9 w-9 p-0 flex items-center justify-center rounded-md group relative overflow-hidden"
-            >
-              <span className="relative z-10 transition-colors duration-300">
-                <svg
-                  className="h-5 w-5 transition-colors duration-300 group-hover:text-green-400"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                  />
-                </svg>
-              </span>
-              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-            </Button>
-            <Button
-              onClick={() => (window.location.href = "/dashboard")}
+              onClick={() => navigate("/profiles")}
               className="text-white h-9 w-9 p-0 flex items-center justify-center rounded-md group relative overflow-hidden"
             >
               <span className="relative z-10 transition-colors duration-300">
@@ -118,10 +116,63 @@ const ProfilesPage = () => {
           </div>
         </div>
 
-        <ProfileGrid profiles={profiles} onAddProfile={addProfile} />
+        <div className="py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-md mx-auto"
+          >
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle>Create New Profile</CardTitle>
+              </CardHeader>
+              <form onSubmit={handleSubmit}>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="profileName">Profile Name</Label>
+                      <Input
+                        id="profileName"
+                        placeholder="Enter profile name"
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        className="focus-visible:ring-green-400"
+                      />
+                      {error && (
+                        <p className="text-sm text-red-500 mt-1">{error}</p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-green-400 hover:text-green-400 text-white relative overflow-hidden group"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <span className="relative z-10 transition-colors duration-300">
+                          Create Profile
+                        </span>
+                        <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default ProfilesPage;
+export default ProfileCreationPage;

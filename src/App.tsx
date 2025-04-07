@@ -7,6 +7,7 @@ import Dashboard from "./components/pages/dashboard";
 import Success from "./components/pages/success";
 import Home from "./components/pages/home";
 import ProfilesPage from "./components/pages/profilesPage";
+import ProfileCreationPage from "./components/pages/profileCreationPage";
 import AuthProvider, { useAuth } from "../supabase/auth";
 import AuthCallback from "./components/auth/AuthCallback";
 
@@ -123,6 +124,14 @@ function AppRoutes() {
             element={
               <PrivateRoute>
                 <ProfilesPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profile/create"
+            element={
+              <PrivateRoute>
+                <ProfileCreationPage />
               </PrivateRoute>
             }
           />

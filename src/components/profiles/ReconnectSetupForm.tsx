@@ -15,6 +15,8 @@ interface ReconnectSetupFormProps {
 }
 
 const ReconnectSetupForm: React.FC<ReconnectSetupFormProps> = ({
+  formData,
+  setFormData,
   onContinue,
   onCancel,
   isLastForm = false,

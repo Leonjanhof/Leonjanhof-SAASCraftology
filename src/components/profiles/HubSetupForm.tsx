@@ -27,6 +27,8 @@ interface HubSetupFormProps {
 }
 
 const HubSetupForm: React.FC<HubSetupFormProps> = ({
+  formData,
+  setFormData,
   onContinue,
   onCancel,
 }) => {

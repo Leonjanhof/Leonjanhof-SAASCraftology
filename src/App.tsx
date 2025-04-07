@@ -6,6 +6,7 @@ import SignUpForm from "./components/auth/SignUpForm";
 import Dashboard from "./components/pages/dashboard";
 import Success from "./components/pages/success";
 import Home from "./components/pages/home";
+import ProfilesPage from "./components/pages/profilesPage";
 import AuthProvider, { useAuth } from "../supabase/auth";
 import AuthCallback from "./components/auth/AuthCallback";
 
@@ -114,6 +115,14 @@ function AppRoutes() {
             element={
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profiles"
+            element={
+              <PrivateRoute>
+                <ProfilesPage />
               </PrivateRoute>
             }
           />

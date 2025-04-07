@@ -513,6 +513,28 @@ const Dashboard = () => {
               </span>
               <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
             </Button>
+            <Button
+              onClick={() => (window.location.href = "/profiles")}
+              className="text-white h-9 w-9 p-0 flex items-center justify-center rounded-md group relative overflow-hidden"
+            >
+              <span className="relative z-10 transition-colors duration-300">
+                <svg
+                  className="h-5 w-5 transition-colors duration-300 group-hover:text-green-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+              </span>
+              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+            </Button>
             <ReviewDialog licenses={licenses} />
           </div>
         </div>

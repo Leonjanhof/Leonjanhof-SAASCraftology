@@ -6,10 +6,13 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import InitialProfileSetupForm from "../profiles/InitialProfileSetupForm";
 import AccountsSetupForm from "../profiles/AccountsSetupForm";
+import HubSetupForm from "../profiles/HubSetupForm";
+import AFKSetupForm from "../profiles/AFKSetupForm";
+import ReconnectSetupForm from "../profiles/ReconnectSetupForm";
 import FormTransitionWrapper from "../profiles/FormTransitionWrapper";
 import { useProfileFormState } from "@/lib/hooks/useProfileFormState";
 
-type FormStep = "initial" | "accounts";
+type FormStep = "initial" | "accounts" | "hub" | "afk" | "reconnect";
 
 const ProfileCreationPage = () => {
   const navigate = useNavigate();
@@ -20,6 +23,12 @@ const ProfileCreationPage = () => {
     setInitialFormData,
     accountsFormData,
     setAccountsFormData,
+    hubFormData,
+    setHubFormData,
+    afkFormData,
+    setAFKFormData,
+    reconnectFormData,
+    setReconnectFormData,
   } = useProfileFormState();
 
   const openDiscord = () => {
@@ -28,19 +37,43 @@ const ProfileCreationPage = () => {
 
   const handleContinue = () => {
     setDirection("forward");
-    if (currentStep === "initial") {
-      setCurrentStep("accounts");
-    } else {
-      navigate("/profiles");
+    switch (currentStep) {
+      case "initial":
+        setCurrentStep("accounts");
+        break;
+      case "accounts":
+        setCurrentStep("hub");
+        break;
+      case "hub":
+        setCurrentStep("afk");
+        break;
+      case "afk":
+        setCurrentStep("reconnect");
+        break;
+      case "reconnect":
+        navigate("/profiles");
+        break;
     }
   };
 
   const handleCancel = () => {
     setDirection("backward");
-    if (currentStep === "initial") {
-      navigate("/profiles");
-    } else {
-      setCurrentStep("initial");
+    switch (currentStep) {
+      case "initial":
+        navigate("/profiles");
+        break;
+      case "accounts":
+        setCurrentStep("initial");
+        break;
+      case "hub":
+        setCurrentStep("accounts");
+        break;
+      case "afk":
+        setCurrentStep("hub");
+        break;
+      case "reconnect":
+        setCurrentStep("afk");
+        break;
     }
   };
 
@@ -140,6 +173,37 @@ const ProfileCreationPage = () => {
                 onContinue={handleContinue}
                 onCancel={handleCancel}
                 onSkip={handleContinue}
+              />
+            </FormTransitionWrapper>
+
+            <FormTransitionWrapper
+              isVisible={currentStep === "hub"}
+              direction={direction}
+            >
+              <HubSetupForm
+                onContinue={handleContinue}
+                onCancel={handleCancel}
+              />
+            </FormTransitionWrapper>
+
+            <FormTransitionWrapper
+              isVisible={currentStep === "afk"}
+              direction={direction}
+            >
+              <AFKSetupForm
+                onContinue={handleContinue}
+                onCancel={handleCancel}
+              />
+            </FormTransitionWrapper>
+
+            <FormTransitionWrapper
+              isVisible={currentStep === "reconnect"}
+              direction={direction}
+            >
+              <ReconnectSetupForm
+                onContinue={handleContinue}
+                onCancel={handleCancel}
+                isLastForm={true}
               />
             </FormTransitionWrapper>
           </motion.div>

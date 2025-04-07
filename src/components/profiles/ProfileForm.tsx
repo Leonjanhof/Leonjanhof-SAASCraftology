@@ -17,6 +17,7 @@ interface ProfileFormProps {
   onContinue: () => void;
   onSkip?: () => void;
   isSubmitting?: boolean;
+  continueText?: string;
 }
 
 const ProfileForm: React.FC<ProfileFormProps> = ({
@@ -27,6 +28,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
   onContinue,
   onSkip,
   isSubmitting = false,
+  continueText = "Continue",
 }) => {
   return (
     <Card className="shadow-lg w-full max-w-md mx-auto">
@@ -59,7 +61,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
           disabled={isSubmitting}
           className="bg-green-400 text-white hover:bg-white hover:text-green-400 hover:border-green-400 border border-transparent hover:border-green-400 transition-colors duration-300"
         >
-          {isSubmitting ? "Processing..." : "Continue"}
+          {isSubmitting ? "Processing..." : continueText}
         </Button>
       </CardFooter>
     </Card>

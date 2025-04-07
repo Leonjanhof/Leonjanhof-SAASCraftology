@@ -14,6 +14,18 @@ export interface AccountsFormData {
   }>;
 }
 
+export interface HubFormData {
+  setting: "command" | "compass" | "none";
+}
+
+export interface AFKFormData {
+  setting: "chatting" | "moving" | "none";
+}
+
+export interface ReconnectFormData {
+  setting: "always" | "delayed" | "none";
+}
+
 export const useProfileFormState = () => {
   const [initialFormData, setInitialFormData] = useState<InitialFormData>({
     profileName: "",
@@ -26,10 +38,30 @@ export const useProfileFormState = () => {
     accounts: [],
   });
 
+  const [hubFormData, setHubFormData] = useState<HubFormData>({
+    setting: "none",
+  });
+
+  const [afkFormData, setAFKFormData] = useState<AFKFormData>({
+    setting: "none",
+  });
+
+  const [reconnectFormData, setReconnectFormData] = useState<ReconnectFormData>(
+    {
+      setting: "none",
+    },
+  );
+
   return {
     initialFormData,
     setInitialFormData,
     accountsFormData,
     setAccountsFormData,
+    hubFormData,
+    setHubFormData,
+    afkFormData,
+    setAFKFormData,
+    reconnectFormData,
+    setReconnectFormData,
   };
 };

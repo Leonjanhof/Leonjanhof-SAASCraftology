@@ -39,16 +39,12 @@ const ProfileCreationPage = () => {
     setDirection("forward");
     switch (currentStep) {
       case "initial":
+        setCurrentStep("hub");
+        break;
+      case "hub":
         setCurrentStep("accounts");
         break;
       case "accounts":
-        if (initialFormData.mode === "voting") {
-          navigate("/profiles");
-        } else {
-          setCurrentStep("hub");
-        }
-        break;
-      case "hub":
         if (initialFormData.mode === "voting") {
           navigate("/profiles");
         } else {

@@ -14,6 +14,8 @@ interface AFKSetupFormProps {
 }
 
 const AFKSetupForm: React.FC<AFKSetupFormProps> = ({
+  formData,
+  setFormData,
   onContinue,
   onCancel,
 }) => {

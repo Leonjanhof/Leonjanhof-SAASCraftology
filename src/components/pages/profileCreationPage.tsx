@@ -68,7 +68,7 @@ const ProfileCreationPage = () => {
         break;
       case "accounts":
         if (initialFormData.mode === "voting") {
-          setCurrentStep("initial");
+          setCurrentStep("hub");
         } else {
           setCurrentStep("hub");
         }

@@ -55,10 +55,10 @@ const HubSetupForm: React.FC<HubSetupFormProps> = ({
 
     const [rows, cols] = gridSize.split("x").map(Number);
     return (
-      <div className="mt-4 border rounded-lg p-4 bg-white">
+      <div className="mt-4 border rounded-lg p-4 bg-white overflow-x-auto">
         <div
-          className="grid gap-2"
-          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+          className="grid gap-1 w-full"
+          style={{ gridTemplateColumns: `repeat(9, minmax(24px, 1fr))` }}
         >
           {Array.from({ length: rows * cols }).map((_, index) => {
             const row = Math.floor(index / cols);
@@ -80,7 +80,7 @@ const HubSetupForm: React.FC<HubSetupFormProps> = ({
                   }
                 }}
                 className={cn(
-                  "aspect-square border-2 rounded-md cursor-pointer transition-all",
+                  "aspect-square border-2 rounded-md cursor-pointer transition-all h-6",
                   "hover:border-green-400/50",
                   isSelected
                     ? "border-green-400 border-dashed bg-green-50"

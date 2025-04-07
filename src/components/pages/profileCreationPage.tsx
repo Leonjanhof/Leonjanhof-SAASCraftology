@@ -42,10 +42,18 @@ const ProfileCreationPage = () => {
         setCurrentStep("accounts");
         break;
       case "accounts":
-        setCurrentStep("hub");
+        if (initialFormData.mode === "voting") {
+          navigate("/profiles");
+        } else {
+          setCurrentStep("hub");
+        }
         break;
       case "hub":
-        setCurrentStep("afk");
+        if (initialFormData.mode === "voting") {
+          navigate("/profiles");
+        } else {
+          setCurrentStep("afk");
+        }
         break;
       case "afk":
         setCurrentStep("reconnect");

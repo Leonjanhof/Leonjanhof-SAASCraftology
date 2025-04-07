@@ -51,6 +51,7 @@ const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
       onContinue={handleContinue}
       onSkip={onSkip}
       isSubmitting={isSubmitting}
+      continueText={formData.mode === "voting" ? "Save profile" : "Continue"}
     >
       <div className="space-y-6">
         <div className="flex justify-end">

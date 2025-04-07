@@ -10,35 +10,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InitialFormData } from "@/lib/hooks/useProfileFormState";
 
 interface InitialProfileSetupFormProps {
+  formData: InitialFormData;
+  setFormData: (data: InitialFormData) => void;
   onContinue: () => void;
   onCancel: () => void;
 }
 
 const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
+  formData,
+  setFormData,
   onContinue,
   onCancel,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [formData, setFormData] = useState({
-    profileName: "",
-    serverAddress: "",
-    protocol: "auto",
-    mode: "voting",
-  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
+    setFormData({ ...formData, [name]: value });
     if (error) setError("");
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user makes a selection
+    setFormData({ ...formData, [name]: value });
     if (error) setError("");
   };
 
@@ -67,7 +64,6 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
 
     try {
       setIsSubmitting(true);
-      // Simulate API call with timeout
       await new Promise((resolve) => setTimeout(resolve, 1000));
       onContinue();
     } catch (err) {
@@ -89,7 +85,6 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
       <div className="space-y-6">
         {error && <FormMessage type="error" message={error} className="mb-4" />}
 
-        {/* Profile Name */}
         <div className="space-y-2">
           <Label htmlFor="profileName">Profile name</Label>
           <Input
@@ -102,7 +97,6 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
           />
         </div>
 
-        {/* Server Address */}
         <div className="space-y-2">
           <Label htmlFor="serverAddress">Server address</Label>
           <div className="relative">
@@ -122,7 +116,6 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
           </div>
         </div>
 
-        {/* Protocol Selection */}
         <div className="space-y-2">
           <Label htmlFor="protocol">Select protocol</Label>
           <Select
@@ -233,7 +226,6 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
           </Select>
         </div>
 
-        {/* Mode Selection */}
         <div className="space-y-2">
           <Label htmlFor="mode">Select mode</Label>
           <Select

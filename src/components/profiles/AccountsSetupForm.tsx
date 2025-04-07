@@ -8,35 +8,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-
-interface MinecraftAccount {
-  id: string;
-  username: string;
-}
+import { AccountsFormData } from "@/lib/hooks/useProfileFormState";
 
 interface AccountsSetupFormProps {
+  formData: AccountsFormData;
+  setFormData: (data: AccountsFormData) => void;
   onContinue: () => void;
   onCancel: () => void;
   onSkip: () => void;
 }
 
 const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
+  formData,
+  setFormData,
   onContinue,
   onCancel,
   onSkip,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [accounts, setAccounts] = useState<MinecraftAccount[]>([]);
 
   const handleAddAccount = () => {
-    // This would typically trigger Microsoft authentication
     console.log("Add Microsoft account clicked");
   };
 
   const handleContinue = async () => {
     try {
       setIsSubmitting(true);
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       onContinue();
     } catch (err) {
@@ -79,8 +76,8 @@ const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          {accounts.length > 0 ? (
-            accounts.map((account) => (
+          {formData.accounts.length > 0 ? (
+            formData.accounts.map((account) => (
               <div
                 key={account.id}
                 className="flex items-center space-x-3 p-2 rounded-lg border border-gray-200"

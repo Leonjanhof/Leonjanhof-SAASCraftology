@@ -9,22 +9,28 @@ interface FormTransitionWrapperProps {
 
 const slideVariants = {
   enterFromRight: {
+    position: "absolute",
     x: "100%",
     opacity: 0,
   },
   enterFromLeft: {
+    position: "absolute",
     x: "-100%",
     opacity: 0,
   },
   center: {
+    position: "relative",
     x: 0,
     opacity: 1,
+    zIndex: 1,
   },
   exitToLeft: {
+    position: "absolute",
     x: "-100%",
     opacity: 0,
   },
   exitToRight: {
+    position: "absolute",
     x: "100%",
     opacity: 0,
   },
@@ -36,7 +42,7 @@ const FormTransitionWrapper: React.FC<FormTransitionWrapperProps> = ({
   direction,
 }) => {
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" initial={false}>
       {isVisible && (
         <motion.div
           initial={direction === "forward" ? "enterFromRight" : "enterFromLeft"}

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import InitialProfileSetupForm from "../profiles/InitialProfileSetupForm";
 import AccountsSetupForm from "../profiles/AccountsSetupForm";
 import FormTransitionWrapper from "../profiles/FormTransitionWrapper";
+import { useProfileFormState } from "@/lib/hooks/useProfileFormState";
 
 type FormStep = "initial" | "accounts";
 
@@ -14,6 +15,12 @@ const ProfileCreationPage = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<FormStep>("initial");
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
+  const {
+    initialFormData,
+    setInitialFormData,
+    accountsFormData,
+    setAccountsFormData,
+  } = useProfileFormState();
 
   const openDiscord = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");
@@ -116,6 +123,8 @@ const ProfileCreationPage = () => {
               direction={direction}
             >
               <InitialProfileSetupForm
+                formData={initialFormData}
+                setFormData={setInitialFormData}
                 onContinue={handleContinue}
                 onCancel={handleCancel}
               />
@@ -126,6 +135,8 @@ const ProfileCreationPage = () => {
               direction={direction}
             >
               <AccountsSetupForm
+                formData={accountsFormData}
+                setFormData={setAccountsFormData}
                 onContinue={handleContinue}
                 onCancel={handleCancel}
                 onSkip={handleContinue}

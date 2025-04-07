@@ -49,10 +49,11 @@ const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
       description="Manage and add accounts"
       onCancel={onCancel}
       onContinue={handleContinue}
-      onSkip={formData.mode === "voting" ? undefined : onSkip}
+      onSkip={formData.accounts?.mode === "voting" ? undefined : onSkip}
       isSubmitting={isSubmitting}
-      continueText={formData.mode === "voting" ? "Save profile" : "Continue"}
-      continueText={formData.mode === "voting" ? "Save profile" : "Continue"}
+      continueText={
+        formData.accounts?.mode === "voting" ? "Save profile" : "Continue"
+      }
     >
       <div className="space-y-6">
         <div className="flex justify-end">

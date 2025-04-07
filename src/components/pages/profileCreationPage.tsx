@@ -1,16 +1,40 @@
-import React from "react";
+import React, { useState } from "react";
 import GearsBackground from "../dashboard/GearsBackground";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import InitialProfileSetupForm from "../profiles/InitialProfileSetupForm";
+import AccountsSetupForm from "../profiles/AccountsSetupForm";
+import FormTransitionWrapper from "../profiles/FormTransitionWrapper";
+
+type FormStep = "initial" | "accounts";
 
 const ProfileCreationPage = () => {
   const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState<FormStep>("initial");
+  const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
   const openDiscord = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");
+  };
+
+  const handleContinue = () => {
+    setDirection("forward");
+    if (currentStep === "initial") {
+      setCurrentStep("accounts");
+    } else {
+      navigate("/profiles");
+    }
+  };
+
+  const handleCancel = () => {
+    setDirection("backward");
+    if (currentStep === "initial") {
+      navigate("/profiles");
+    } else {
+      setCurrentStep("initial");
+    }
   };
 
   return (
@@ -85,9 +109,28 @@ const ProfileCreationPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="max-w-md mx-auto"
+            className="max-w-md mx-auto relative overflow-hidden"
           >
-            <InitialProfileSetupForm />
+            <FormTransitionWrapper
+              isVisible={currentStep === "initial"}
+              direction={direction}
+            >
+              <InitialProfileSetupForm
+                onContinue={handleContinue}
+                onCancel={handleCancel}
+              />
+            </FormTransitionWrapper>
+
+            <FormTransitionWrapper
+              isVisible={currentStep === "accounts"}
+              direction={direction}
+            >
+              <AccountsSetupForm
+                onContinue={handleContinue}
+                onCancel={handleCancel}
+                onSkip={handleContinue}
+              />
+            </FormTransitionWrapper>
           </motion.div>
         </div>
       </div>

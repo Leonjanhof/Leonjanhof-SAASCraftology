@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import ProfileForm from "./ProfileForm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FormMessage from "@/components/ui/form-message";
 import {
   Select,
   SelectContent,
@@ -11,9 +11,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const InitialProfileSetupForm = () => {
-  const navigate = useNavigate();
+interface InitialProfileSetupFormProps {
+  onContinue: () => void;
+  onCancel: () => void;
+}
+
+const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
+  onContinue,
+  onCancel,
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     profileName: "",
     serverAddress: "",
@@ -24,25 +32,47 @@ const InitialProfileSetupForm = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (error) setError("");
   };
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear error when user makes a selection
+    if (error) setError("");
   };
 
-  const handleCancel = () => {
-    navigate("/profiles");
+  const validateForm = () => {
+    if (!formData.profileName.trim()) {
+      setError("Please enter a profile name");
+      return false;
+    }
+    if (!formData.serverAddress.trim()) {
+      setError("Please enter a server address");
+      return false;
+    }
+    if (!formData.protocol) {
+      setError("Please select a protocol");
+      return false;
+    }
+    if (!formData.mode) {
+      setError("Please select a mode");
+      return false;
+    }
+    return true;
   };
 
   const handleContinue = async () => {
+    if (!validateForm()) return;
+
     try {
       setIsSubmitting(true);
       // Simulate API call with timeout
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Navigate back to profiles page after successful creation
-      navigate("/profiles");
+      onContinue();
     } catch (err) {
       console.error("Error creating profile:", err);
+      setError("Failed to create profile. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -52,11 +82,13 @@ const InitialProfileSetupForm = () => {
     <ProfileForm
       title="Initial profile setup"
       description="Configure your profile settings"
-      onCancel={handleCancel}
+      onCancel={onCancel}
       onContinue={handleContinue}
       isSubmitting={isSubmitting}
     >
       <div className="space-y-6">
+        {error && <FormMessage type="error" message={error} className="mb-4" />}
+
         {/* Profile Name */}
         <div className="space-y-2">
           <Label htmlFor="profileName">Profile name</Label>

@@ -15,6 +15,7 @@ interface ProfileFormProps {
   description?: string;
   onCancel: () => void;
   onContinue: () => void;
+  onSkip?: () => void;
   isSubmitting?: boolean;
 }
 
@@ -24,6 +25,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
   description = "Please fill out the form below",
   onCancel,
   onContinue,
+  onSkip,
   isSubmitting = false,
 }) => {
   return (
@@ -35,7 +37,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
       <CardContent>
         <div className="min-h-[400px]">{children}</div>
       </CardContent>
-      <CardFooter className="flex justify-between pt-6 border-t">
+      <CardFooter className="flex justify-between items-center pt-6 border-t">
         <Button
           variant="outline"
           onClick={onCancel}
@@ -43,6 +45,15 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         >
           Cancel
         </Button>
+        {onSkip && (
+          <Button
+            variant="outline"
+            onClick={onSkip}
+            className="bg-white text-green-400 hover:bg-green-400 hover:text-white border-green-400 transition-colors duration-300"
+          >
+            Skip
+          </Button>
+        )}
         <Button
           onClick={onContinue}
           disabled={isSubmitting}

@@ -185,6 +185,8 @@ const ProfileCreationPage = () => {
               direction={direction}
             >
               <HubSetupForm
+                formData={hubFormData}
+                setFormData={setHubFormData}
                 onContinue={handleContinue}
                 onCancel={handleCancel}
               />
@@ -195,6 +197,8 @@ const ProfileCreationPage = () => {
               direction={direction}
             >
               <AFKSetupForm
+                formData={afkFormData}
+                setFormData={setAFKFormData}
                 onContinue={handleContinue}
                 onCancel={handleCancel}
               />
@@ -205,6 +209,8 @@ const ProfileCreationPage = () => {
               direction={direction}
             >
               <ReconnectSetupForm
+                formData={reconnectFormData}
+                setFormData={setReconnectFormData}
                 onContinue={handleContinue}
                 onCancel={handleCancel}
                 isLastForm={true}

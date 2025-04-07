@@ -16,6 +16,9 @@ export interface AccountsFormData {
 
 export interface HubFormData {
   setting: "command" | "compass" | "none";
+  commandInput: string;
+  gridSize: "none" | "9x1" | "9x2" | "9x3" | "9x4" | "9x5" | "9x6";
+  selectedSquare: { row: number; col: number } | null;
 }
 
 export interface AFKFormData {
@@ -40,6 +43,9 @@ export const useProfileFormState = () => {
 
   const [hubFormData, setHubFormData] = useState<HubFormData>({
     setting: "none",
+    commandInput: "",
+    gridSize: "none",
+    selectedSquare: null,
   });
 
   const [afkFormData, setAFKFormData] = useState<AFKFormData>({

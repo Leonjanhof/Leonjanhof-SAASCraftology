@@ -15,6 +15,13 @@ type GridSize = "none" | "9x1" | "9x2" | "9x3" | "9x4" | "9x5" | "9x6";
 type SelectedSquare = { row: number; col: number } | null;
 
 interface HubSetupFormProps {
+  formData: {
+    setting: HubSetting;
+    commandInput: string;
+    gridSize: GridSize;
+    selectedSquare: SelectedSquare;
+  };
+  setFormData: (data: any) => void;
   onContinue: () => void;
   onCancel: () => void;
 }
@@ -23,10 +30,12 @@ const HubSetupForm: React.FC<HubSetupFormProps> = ({
   onContinue,
   onCancel,
 }) => {
-  const [selectedSetting, setSelectedSetting] = useState<HubSetting>("none");
-  const [commandInput, setCommandInput] = useState("");
-  const [gridSize, setGridSize] = useState<GridSize>("none");
-  const [selectedSquare, setSelectedSquare] = useState<SelectedSquare>(null);
+  const {
+    setting: selectedSetting,
+    commandInput,
+    gridSize,
+    selectedSquare,
+  } = formData;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleContinue = async () => {
@@ -40,14 +49,15 @@ const HubSetupForm: React.FC<HubSetupFormProps> = ({
   };
 
   const handleSettingChange = (setting: HubSetting) => {
-    setSelectedSetting(setting);
+    const newData = { ...formData, setting };
     if (setting !== "compass") {
-      setGridSize("none");
-      setSelectedSquare(null);
+      newData.gridSize = "none";
+      newData.selectedSquare = null;
     }
     if (setting !== "command") {
-      setCommandInput("");
+      newData.commandInput = "";
     }
+    setFormData(newData);
   };
 
   const renderGrid = () => {
@@ -74,9 +84,9 @@ const HubSetupForm: React.FC<HubSetupFormProps> = ({
                     selectedSquare?.row === row &&
                     selectedSquare?.col === col
                   ) {
-                    setSelectedSquare(null); // Deselect if clicking the same square
+                    setFormData({ ...formData, selectedSquare: null }); // Deselect if clicking the same square
                   } else {
-                    setSelectedSquare({ row, col }); // Select new square
+                    setFormData({ ...formData, selectedSquare: { row, col } }); // Select new square
                   }
                 }}
                 className={cn(
@@ -126,7 +136,9 @@ const HubSetupForm: React.FC<HubSetupFormProps> = ({
             <Input
               placeholder="Enter command..."
               value={commandInput}
-              onChange={(e) => setCommandInput(e.target.value)}
+              onChange={(e) =>
+                setFormData({ ...formData, commandInput: e.target.value })
+              }
               className="text-green-600 focus-visible:ring-green-400 placeholder:text-green-600/50"
             />
           </div>
@@ -136,7 +148,9 @@ const HubSetupForm: React.FC<HubSetupFormProps> = ({
           <div className="mt-4 space-y-4">
             <Select
               value={gridSize}
-              onValueChange={(value) => setGridSize(value as GridSize)}
+              onValueChange={(value) =>
+                setFormData({ ...formData, gridSize: value as GridSize })
+              }
             >
               <SelectTrigger className="w-full focus:ring-green-400 text-green-600">
                 <SelectValue placeholder="Select grid size" />

@@ -5,6 +5,10 @@ import { cn } from "@/lib/utils";
 type ReconnectSetting = "always" | "delayed" | "none";
 
 interface ReconnectSetupFormProps {
+  formData: {
+    setting: ReconnectSetting;
+  };
+  setFormData: (data: any) => void;
   onContinue: () => void;
   onCancel: () => void;
   isLastForm?: boolean;
@@ -15,8 +19,7 @@ const ReconnectSetupForm: React.FC<ReconnectSetupFormProps> = ({
   onCancel,
   isLastForm = false,
 }) => {
-  const [selectedSetting, setSelectedSetting] =
-    useState<ReconnectSetting>("none");
+  const { setting: selectedSetting } = formData;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleContinue = async () => {
@@ -42,7 +45,9 @@ const ReconnectSetupForm: React.FC<ReconnectSetupFormProps> = ({
         {["always", "delayed", "none"].map((setting) => (
           <div
             key={setting}
-            onClick={() => setSelectedSetting(setting as ReconnectSetting)}
+            onClick={() =>
+              setFormData({ ...formData, setting: setting as ReconnectSetting })
+            }
             className={cn(
               "p-4 rounded-lg border-2 cursor-pointer transition-all",
               "hover:border-green-400/50",

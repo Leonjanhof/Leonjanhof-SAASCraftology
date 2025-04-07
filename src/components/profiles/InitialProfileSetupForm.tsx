@@ -246,7 +246,7 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
                 value="voting-hosting"
                 className="text-green-600 hover:text-green-600"
               >
-                Voting & hosting
+                Hosting
               </SelectItem>
             </SelectContent>
           </Select>

@@ -5,6 +5,10 @@ import { cn } from "@/lib/utils";
 type AFKSetting = "chatting" | "moving" | "none";
 
 interface AFKSetupFormProps {
+  formData: {
+    setting: AFKSetting;
+  };
+  setFormData: (data: any) => void;
   onContinue: () => void;
   onCancel: () => void;
 }
@@ -13,7 +17,7 @@ const AFKSetupForm: React.FC<AFKSetupFormProps> = ({
   onContinue,
   onCancel,
 }) => {
-  const [selectedSetting, setSelectedSetting] = useState<AFKSetting>("none");
+  const { setting: selectedSetting } = formData;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleContinue = async () => {
@@ -38,7 +42,9 @@ const AFKSetupForm: React.FC<AFKSetupFormProps> = ({
         {["chatting", "moving", "none"].map((setting) => (
           <div
             key={setting}
-            onClick={() => setSelectedSetting(setting as AFKSetting)}
+            onClick={() =>
+              setFormData({ ...formData, setting: setting as AFKSetting })
+            }
             className={cn(
               "p-4 rounded-lg border-2 cursor-pointer transition-all",
               "hover:border-green-400/50",

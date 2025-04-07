@@ -17,7 +17,7 @@ const AddProfileCard: React.FC<AddProfileCardProps> = ({ onAddProfile }) => {
       <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-4">
         <Plus className="h-8 w-8 text-green-400" />
       </div>
-      <h3 className="text-lg font-medium text-gray-900">Add Profile</h3>
+      <h3 className="text-lg font-medium text-gray-900">Add profile</h3>
       <p className="text-sm text-gray-500 mt-1">Create a new profile</p>
     </motion.div>
   );

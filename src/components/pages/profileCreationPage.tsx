@@ -109,7 +109,7 @@ const ProfileCreationPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="max-w-md mx-auto relative overflow-hidden"
+            className="max-w-md mx-auto relative overflow-hidden min-h-[500px]"
           >
             <FormTransitionWrapper
               isVisible={currentStep === "initial"}

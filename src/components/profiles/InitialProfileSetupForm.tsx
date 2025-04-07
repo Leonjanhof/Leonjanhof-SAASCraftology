@@ -66,7 +66,7 @@ const InitialProfileSetupForm = () => {
             placeholder="Enter profile name"
             value={formData.profileName}
             onChange={handleInputChange}
-            className="focus-visible:ring-green-400 text-green-600"
+            className="text-green-600 focus-visible:ring-green-400 placeholder:text-green-600/50"
           />
         </div>
 
@@ -80,11 +80,13 @@ const InitialProfileSetupForm = () => {
               placeholder="Enter server address"
               value={formData.serverAddress}
               onChange={handleInputChange}
-              className="focus-visible:ring-green-400 pr-20 text-green-600"
+              className="text-green-600 focus-visible:ring-green-400 placeholder:text-green-600/50 pr-[72px]"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm px-2 py-1 bg-gray-100 rounded-md font-mono text-green-600">
-              :25565
-            </span>
+            <div className="absolute inset-y-0 right-0 flex items-center pointer-events-none">
+              <span className="text-sm px-2 py-1 bg-gray-100 rounded text-green-600 mr-2">
+                :25565
+              </span>
+            </div>
           </div>
         </div>
 
@@ -99,52 +101,100 @@ const InitialProfileSetupForm = () => {
               <SelectValue placeholder="Select protocol" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="auto" className="text-green-600">
+              <SelectItem
+                value="auto"
+                className="text-green-600 hover:text-green-600"
+              >
                 Auto-protocol
               </SelectItem>
-              <SelectItem value="1.7.9" className="text-green-600">
+              <SelectItem
+                value="1.7.9"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.7.9
               </SelectItem>
-              <SelectItem value="1.8" className="text-green-600">
+              <SelectItem
+                value="1.8"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.8
               </SelectItem>
-              <SelectItem value="1.9" className="text-green-600">
+              <SelectItem
+                value="1.9"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.9
               </SelectItem>
-              <SelectItem value="1.10" className="text-green-600">
+              <SelectItem
+                value="1.10"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.10
               </SelectItem>
-              <SelectItem value="1.11" className="text-green-600">
+              <SelectItem
+                value="1.11"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.11
               </SelectItem>
-              <SelectItem value="1.12" className="text-green-600">
+              <SelectItem
+                value="1.12"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.12
               </SelectItem>
-              <SelectItem value="1.13" className="text-green-600">
+              <SelectItem
+                value="1.13"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.13
               </SelectItem>
-              <SelectItem value="1.14" className="text-green-600">
+              <SelectItem
+                value="1.14"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.14
               </SelectItem>
-              <SelectItem value="1.15" className="text-green-600">
+              <SelectItem
+                value="1.15"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.15
               </SelectItem>
-              <SelectItem value="1.16" className="text-green-600">
+              <SelectItem
+                value="1.16"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.16
               </SelectItem>
-              <SelectItem value="1.17" className="text-green-600">
+              <SelectItem
+                value="1.17"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.17
               </SelectItem>
-              <SelectItem value="1.18" className="text-green-600">
+              <SelectItem
+                value="1.18"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.18
               </SelectItem>
-              <SelectItem value="1.19" className="text-green-600">
+              <SelectItem
+                value="1.19"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.19
               </SelectItem>
-              <SelectItem value="1.20" className="text-green-600">
+              <SelectItem
+                value="1.20"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.20
               </SelectItem>
-              <SelectItem value="1.21" className="text-green-600">
+              <SelectItem
+                value="1.21"
+                className="text-green-600 hover:text-green-600"
+              >
                 1.21
               </SelectItem>
             </SelectContent>
@@ -162,10 +212,16 @@ const InitialProfileSetupForm = () => {
               <SelectValue placeholder="Select mode" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="voting" className="text-green-600">
+              <SelectItem
+                value="voting"
+                className="text-green-600 hover:text-green-600"
+              >
                 Voting
               </SelectItem>
-              <SelectItem value="voting-hosting" className="text-green-600">
+              <SelectItem
+                value="voting-hosting"
+                className="text-green-600 hover:text-green-600"
+              >
                 Voting & hosting
               </SelectItem>
             </SelectContent>

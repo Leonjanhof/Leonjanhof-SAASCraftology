@@ -1,52 +1,16 @@
-import React, { useState } from "react";
+import React from "react";
 import GearsBackground from "../dashboard/GearsBackground";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import InitialProfileSetupForm from "../profiles/InitialProfileSetupForm";
 
 const ProfileCreationPage = () => {
   const navigate = useNavigate();
-  const [profileName, setProfileName] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
 
   const openDiscord = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!profileName.trim()) {
-      setError("Profile name is required");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      // Simulate API call with timeout
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Navigate back to profiles page after successful creation
-      navigate("/profiles");
-    } catch (err) {
-      console.error("Error creating profile:", err);
-      setError("Failed to create profile. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -123,51 +87,7 @@ const ProfileCreationPage = () => {
             transition={{ duration: 0.5 }}
             className="max-w-md mx-auto"
           >
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle>Create New Profile</CardTitle>
-              </CardHeader>
-              <form onSubmit={handleSubmit}>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="profileName">Profile Name</Label>
-                      <Input
-                        id="profileName"
-                        placeholder="Enter profile name"
-                        value={profileName}
-                        onChange={(e) => setProfileName(e.target.value)}
-                        className="focus-visible:ring-green-400"
-                      />
-                      {error && (
-                        <p className="text-sm text-red-500 mt-1">{error}</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-green-400 hover:text-green-400 text-white relative overflow-hidden group"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <span className="relative z-10 transition-colors duration-300">
-                          Create Profile
-                        </span>
-                        <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-                      </>
-                    )}
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
+            <InitialProfileSetupForm />
           </motion.div>
         </div>
       </div>

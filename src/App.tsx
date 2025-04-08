@@ -10,6 +10,7 @@ import ProfilesPage from "./components/pages/profilesPage";
 import ProfileCreationPage from "./components/pages/profileCreationPage";
 import AuthProvider, { useAuth } from "../supabase/auth";
 import AuthCallback from "./components/auth/AuthCallback";
+import MicrosoftAuthCallback from "./components/auth/MicrosoftAuthCallback";
 
 // Lazy load the admin component
 const AdminDashboard = lazy(
@@ -111,6 +112,7 @@ function AppRoutes() {
           <Route path="/login" element={<LoginForm />} />
           <Route path="/signup" element={<SignUpForm />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/microsoft" element={<MicrosoftAuthCallback />} />
           <Route
             path="/dashboard"
             element={

@@ -29,8 +29,27 @@ const AccountsSetupFormModified: React.FC<AccountsSetupFormModifiedProps> = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddAccount = () => {
-    console.log("Add Microsoft account clicked");
+  const handleAddAccount = async () => {
+    try {
+      const account = await openMicrosoftLogin();
+      if (account) {
+        const newFormData = {
+          ...formData,
+          accounts: [
+            ...formData.accounts,
+            {
+              id: account.id,
+              username: account.username,
+            },
+          ],
+        };
+        setFormData(newFormData);
+        // Save to localStorage
+        localStorage.setItem("profile_accounts", JSON.stringify(newFormData));
+      }
+    } catch (error) {
+      console.error("Error adding Microsoft account:", error);
+    }
   };
 
   const handleContinue = async () => {

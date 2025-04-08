@@ -37,9 +37,13 @@ export const useProfileFormState = () => {
     mode: "voting",
   });
 
-  const [accountsFormData, setAccountsFormData] = useState<AccountsFormData>({
-    accounts: [],
-  });
+  const [accountsFormData, setAccountsFormData] = useState<AccountsFormData>(
+    () => {
+      // Try to load saved accounts from localStorage
+      const saved = localStorage.getItem("profile_accounts");
+      return saved ? JSON.parse(saved) : { accounts: [] };
+    },
+  );
 
   const [hubFormData, setHubFormData] = useState<HubFormData>({
     setting: "none",

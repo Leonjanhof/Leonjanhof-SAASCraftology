@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import InitialProfileSetupForm from "../profiles/InitialProfileSetupForm";
-import AccountsSetupForm from "../profiles/AccountsSetupForm";
+import AccountsSetupFormModified from "../profiles/AccountsSetupFormModified";
 import HubSetupForm from "../profiles/HubSetupForm";
 import AFKSetupForm from "../profiles/AFKSetupForm";
 import ReconnectSetupForm from "../profiles/ReconnectSetupForm";
@@ -175,12 +175,13 @@ const ProfileCreationPage = () => {
               isVisible={currentStep === "accounts"}
               direction={direction}
             >
-              <AccountsSetupForm
+              <AccountsSetupFormModified
                 formData={accountsFormData}
                 setFormData={setAccountsFormData}
                 onContinue={handleContinue}
                 onCancel={handleCancel}
                 onSkip={handleContinue}
+                isVotingMode={initialFormData.mode === "voting"}
               />
             </FormTransitionWrapper>
 

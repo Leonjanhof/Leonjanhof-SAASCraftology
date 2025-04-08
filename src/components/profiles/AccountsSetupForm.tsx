@@ -9,8 +9,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AccountsFormData } from "@/lib/hooks/useProfileFormState";
+import { openMicrosoftLogin } from "@/lib/auth/microsoft";
 
-interface AccountsSetupFormModifiedProps {
+interface AccountsSetupFormProps {
   formData: AccountsFormData;
   setFormData: (data: AccountsFormData) => void;
   onContinue: () => void;
@@ -19,7 +20,7 @@ interface AccountsSetupFormModifiedProps {
   isVotingMode?: boolean;
 }
 
-const AccountsSetupFormModified: React.FC<AccountsSetupFormModifiedProps> = ({
+const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
   formData,
   setFormData,
   onContinue,
@@ -119,4 +120,4 @@ const AccountsSetupFormModified: React.FC<AccountsSetupFormModifiedProps> = ({
   );
 };
 
-export default AccountsSetupFormModified;
+export default AccountsSetupForm;

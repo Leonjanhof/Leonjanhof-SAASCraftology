@@ -40,7 +40,8 @@ serve(async (req) => {
           client_secret:
             Deno.env.get("MICROSOFT_PROVIDER_AUTHENTICATION_SECRET") || "",
           code,
-          redirect_uri: "https://craftology.app/auth/microsoft",
+          redirect_uri: `${req.headers.get("origin")}/auth/microsoft`,
+
           grant_type: "authorization_code",
         }),
       },

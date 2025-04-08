@@ -36,7 +36,7 @@ serve(async (req) => {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          client_id: Deno.env.get("MICROSOFT_CLIENT_ID") || "",
+          client_id: clientId || "",
           client_secret:
             Deno.env.get("MICROSOFT_PROVIDER_AUTHENTICATION_SECRET") || "",
           code,

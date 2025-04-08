@@ -60,9 +60,9 @@ const ReconnectSetupForm: React.FC<ReconnectSetupFormProps> = ({
           >
             <span className="text-green-600 font-medium capitalize">
               {setting === "always"
-                ? "Always Reconnect"
+                ? "Always reconnect"
                 : setting === "delayed"
-                  ? "Reconnect Delayed"
+                  ? "Reconnect delayed"
                   : "None"}
             </span>
           </div>

@@ -15,12 +15,13 @@ export async function openMicrosoftLogin(): Promise<MicrosoftAccount | null> {
     const params = new URLSearchParams({
       client_id: import.meta.env.VITE_MICROSOFT_CLIENT_ID || "",
       response_type: "code",
-      redirect_uri: `${window.location.origin}/auth/microsoft`,
+      redirect_uri: `https://craftology.app/auth/microsoft`,
       scope: "XboxLive.signin offline_access openid",
       state,
     });
 
-    const authUrl = `https://login.live.com/oauth20_authorize.srf?${params}`;
+    // Using consumers endpoint as recommended for XboxLive.signin scope
+    const authUrl = `https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?${params}`;
 
     // Open popup window
     const width = 600;

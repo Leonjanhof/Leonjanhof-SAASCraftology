@@ -16,7 +16,7 @@ export async function openMicrosoftLogin(): Promise<MicrosoftAccount | null> {
       client_id: import.meta.env.VITE_MICROSOFT_CLIENT_ID || "",
       response_type: "code",
       redirect_uri: `${window.location.origin}/auth/microsoft`,
-      scope: "XboxLive.signin offline_access",
+      scope: "XboxLive.signin offline_access openid",
       state,
     });
 

@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // This is needed if you're planning to invoke your function from a browser.
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -27,6 +28,7 @@ serve(async (req) => {
       throw new Error("Microsoft client credentials not configured");
     }
 
+    console.log("Exchanging code for tokens");
     // Exchange code for tokens
     const tokenResponse = await fetch(
       "https://login.live.com/oauth20_token.srf",
@@ -36,20 +38,26 @@ serve(async (req) => {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          client_id: clientId || "",
-          client_secret:
-            Deno.env.get("MICROSOFT_PROVIDER_AUTHENTICATION_SECRET") || "",
+          client_id: clientId,
+          client_secret: clientSecret,
           code,
           redirect_uri: `${req.headers.get("origin")}/auth/microsoft`,
-
           grant_type: "authorization_code",
         }),
       },
     );
 
     const tokens = await tokenResponse.json();
+    console.log("Token response received");
+
+    if (tokens.error) {
+      throw new Error(
+        `Token error: ${tokens.error_description || tokens.error}`,
+      );
+    }
 
     // Get Xbox Live token
+    console.log("Getting Xbox Live token");
     const xblResponse = await fetch(
       "https://user.auth.xboxlive.com/user/authenticate",
       {
@@ -71,8 +79,14 @@ serve(async (req) => {
     );
 
     const xblData = await xblResponse.json();
+    console.log("Xbox Live token received");
+
+    if (xblData.error) {
+      throw new Error(`Xbox Live error: ${xblData.error}`);
+    }
 
     // Get XSTS token
+    console.log("Getting XSTS token");
     const xstsResponse = await fetch(
       "https://xsts.auth.xboxlive.com/xsts/authorize",
       {
@@ -93,8 +107,14 @@ serve(async (req) => {
     );
 
     const xstsData = await xstsResponse.json();
+    console.log("XSTS token received");
+
+    if (xstsData.error) {
+      throw new Error(`XSTS error: ${xstsData.error}`);
+    }
 
     // Get Minecraft token
+    console.log("Getting Minecraft token");
     const mcResponse = await fetch(
       "https://api.minecraftservices.com/authentication/login_with_xbox",
       {
@@ -110,8 +130,14 @@ serve(async (req) => {
     );
 
     const mcData = await mcResponse.json();
+    console.log("Minecraft token received");
+
+    if (mcData.error) {
+      throw new Error(`Minecraft error: ${mcData.error}`);
+    }
 
     // Get Minecraft profile
+    console.log("Getting Minecraft profile");
     const profileResponse = await fetch(
       "https://api.minecraftservices.com/minecraft/profile",
       {
@@ -122,6 +148,11 @@ serve(async (req) => {
     );
 
     const profile = await profileResponse.json();
+    console.log("Minecraft profile received");
+
+    if (profile.error) {
+      throw new Error(`Profile error: ${profile.error}`);
+    }
 
     return new Response(
       JSON.stringify({
@@ -136,6 +167,7 @@ serve(async (req) => {
       },
     );
   } catch (error) {
+    console.error("Microsoft auth error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

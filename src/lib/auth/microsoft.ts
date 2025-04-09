@@ -17,6 +17,7 @@ export async function openMicrosoftLogin(): Promise<MicrosoftAccount | null> {
       response_type: "code",
       redirect_uri: `https://craftology.app/auth/microsoft`,
       scope: "XboxLive.signin offline_access openid",
+      prompt: "select_account",
       state,
     });
 

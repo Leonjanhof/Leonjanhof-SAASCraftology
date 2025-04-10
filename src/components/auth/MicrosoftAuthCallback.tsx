@@ -18,6 +18,9 @@ export default function MicrosoftAuthCallback() {
         if (!code) throw new Error("No code provided");
 
         // Exchange code for tokens using Supabase edge function
+        console.log("Invoking edge function with code", {
+          codeLength: code?.length,
+        });
         const { data, error } = await supabase.functions.invoke(
           "microsoft-auth",
           {
@@ -48,6 +51,7 @@ export default function MicrosoftAuthCallback() {
         );
       } catch (error) {
         console.error("Microsoft auth error:", error);
+        console.error("Error details:", JSON.stringify(error, null, 2));
         window.opener?.postMessage(
           {
             type: "MICROSOFT_AUTH_ERROR",

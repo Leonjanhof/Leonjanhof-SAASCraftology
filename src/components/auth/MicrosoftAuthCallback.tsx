@@ -21,12 +21,26 @@ export default function MicrosoftAuthCallback() {
         console.log("Invoking edge function with code", {
           codeLength: code?.length,
         });
+        console.log("Invoking edge function with code:", {
+          code_length: code?.length,
+        });
+
         const { data, error } = await supabase.functions.invoke(
           "supabase-functions-microsoft-auth",
           {
             body: { code },
           },
         );
+
+        if (error) {
+          console.error("Edge function error:", error);
+          throw error;
+        }
+
+        if (!data) {
+          console.error("No data returned from edge function");
+          throw new Error("No data returned from edge function");
+        }
 
         if (error) throw error;
 

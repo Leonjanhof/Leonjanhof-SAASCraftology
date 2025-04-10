@@ -35,6 +35,12 @@ serve(async (req) => {
         : `${req.headers.get("origin")}/auth/microsoft`,
     });
     // Exchange code for tokens
+    console.log("Exchanging code for tokens with params:", {
+      client_id: clientId,
+      code_length: code?.length,
+      redirect_uri: "https://craftology.app/auth/microsoft",
+    });
+
     const tokenResponse = await fetch(
       "https://login.live.com/oauth20_token.srf",
       {
@@ -46,15 +52,19 @@ serve(async (req) => {
           client_id: clientId,
           client_secret: clientSecret,
           code,
-          // Allow both production and development redirect URIs
-          redirect_uri: req.headers.get("origin")?.includes("craftology.app")
-            ? "https://craftology.app/auth/microsoft"
-            : `${req.headers.get("origin")}/auth/microsoft`,
-
+          redirect_uri: "https://craftology.app/auth/microsoft",
           grant_type: "authorization_code",
         }),
       },
     );
+
+    // Log the response for debugging
+    const responseText = await tokenResponse.text();
+    console.log("Token response status:", tokenResponse.status);
+    console.log("Token response:", responseText);
+
+    // Parse the response as JSON if it's valid
+    const tokens = responseText ? JSON.parse(responseText) : null;
 
     const tokens = await tokenResponse.json();
     console.log("Token response received");

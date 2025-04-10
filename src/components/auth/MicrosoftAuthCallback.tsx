@@ -22,7 +22,7 @@ export default function MicrosoftAuthCallback() {
           codeLength: code?.length,
         });
         const { data, error } = await supabase.functions.invoke(
-          "microsoft-auth",
+          "supabase-functions-microsoft-auth",
           {
             body: { code },
           },

@@ -11,6 +11,9 @@ export interface AccountsFormData {
   accounts: Array<{
     id: string;
     username: string;
+    accessToken?: string;
+    refreshToken?: string;
+    expiresAt?: number;
   }>;
 }
 

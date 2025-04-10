@@ -18,7 +18,7 @@ export async function openMicrosoftLogin(): Promise<MicrosoftAccount | null> {
       client_id: import.meta.env.VITE_MICROSOFT_CLIENT_ID || "",
       response_type: "code",
       redirect_uri: `https://craftology.app/auth/microsoft`,
-      scope: "offline_access openid XboxLive.signin",
+      scope: "XboxLive.signin offline_access openid",
       prompt: "select_account",
       state,
     });

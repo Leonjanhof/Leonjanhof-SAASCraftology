@@ -4,6 +4,8 @@ export interface MicrosoftAccount {
   accessToken: string;
   refreshToken: string;
   expiresAt: number;
+  xboxLiveToken?: string;
+  userHash?: string;
 }
 
 export async function openMicrosoftLogin(): Promise<MicrosoftAccount | null> {
@@ -16,7 +18,7 @@ export async function openMicrosoftLogin(): Promise<MicrosoftAccount | null> {
       client_id: import.meta.env.VITE_MICROSOFT_CLIENT_ID || "",
       response_type: "code",
       redirect_uri: `https://craftology.app/auth/microsoft`,
-      scope: "offline_access openid",
+      scope: "offline_access openid XboxLive.signin",
       prompt: "select_account",
       state,
     });

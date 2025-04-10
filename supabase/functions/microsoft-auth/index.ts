@@ -28,21 +28,11 @@ serve(async (req) => {
       throw new Error("Microsoft client credentials not configured");
     }
 
-    console.log("Exchanging code for tokens", {
-      origin: req.headers.get("origin"),
-      redirect_uri: req.headers.get("origin")?.includes("craftology.app")
-        ? "https://craftology.app/auth/microsoft"
-        : `${req.headers.get("origin")}/auth/microsoft`,
-    });
-    // Exchange code for tokens
-    console.log("Exchanging code for tokens with params:", {
-      client_id: clientId,
-      code_length: code?.length,
-      redirect_uri: "https://craftology.app/auth/microsoft",
-    });
+    console.log("Exchanging code for tokens");
 
+    // Exchange code for tokens
     const tokenResponse = await fetch(
-      "https://login.live.com/oauth20_token.srf",
+      "https://login.microsoftonline.com/consumers/oauth20_token.srf",
       {
         method: "POST",
         headers: {
@@ -63,16 +53,28 @@ serve(async (req) => {
     console.log("Token response status:", tokenResponse.status);
     console.log("Token response:", responseText);
 
-    // Parse the response as JSON if it's valid
+    // Parse the response as JSON
     const tokens = responseText ? JSON.parse(responseText) : null;
 
-    const tokens = await tokenResponse.json();
-    console.log("Token response received");
-
-    if (tokens.error) {
+    if (!tokens || tokens.error) {
       throw new Error(
-        `Token error: ${tokens.error_description || tokens.error}`,
+        `Token error: ${tokens?.error_description || tokens?.error || "No tokens received"}`,
       );
+    }
+
+    // Get Microsoft Graph profile
+    console.log("Getting Microsoft Graph profile");
+    const profileResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
+      headers: {
+        Authorization: `Bearer ${tokens.access_token}`,
+      },
+    });
+
+    const profile = await profileResponse.json();
+    console.log("Microsoft Graph profile received");
+
+    if (profile.error) {
+      throw new Error(`Profile error: ${profile.error.message}`);
     }
 
     // Get Xbox Live token
@@ -104,82 +106,15 @@ serve(async (req) => {
       throw new Error(`Xbox Live error: ${xblData.error}`);
     }
 
-    // Get XSTS token
-    console.log("Getting XSTS token");
-    const xstsResponse = await fetch(
-      "https://xsts.auth.xboxlive.com/xsts/authorize",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          Properties: {
-            SandboxId: "RETAIL",
-            UserTokens: [xblData.Token],
-          },
-          RelyingParty: "rp://api.minecraftservices.com/",
-          TokenType: "JWT",
-        }),
-      },
-    );
-
-    const xstsData = await xstsResponse.json();
-    console.log("XSTS token received");
-
-    if (xstsData.error) {
-      throw new Error(`XSTS error: ${xstsData.error}`);
-    }
-
-    // Get Minecraft token
-    console.log("Getting Minecraft token");
-    const mcResponse = await fetch(
-      "https://api.minecraftservices.com/authentication/login_with_xbox",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          identityToken: `XBL3.0 x=${xstsData.DisplayClaims.xui[0].uhs};${xstsData.Token}`,
-        }),
-      },
-    );
-
-    const mcData = await mcResponse.json();
-    console.log("Minecraft token received");
-
-    if (mcData.error) {
-      throw new Error(`Minecraft error: ${mcData.error}`);
-    }
-
-    // Get Minecraft profile
-    console.log("Getting Minecraft profile");
-    const profileResponse = await fetch(
-      "https://api.minecraftservices.com/minecraft/profile",
-      {
-        headers: {
-          Authorization: `Bearer ${mcData.access_token}`,
-        },
-      },
-    );
-
-    const profile = await profileResponse.json();
-    console.log("Minecraft profile received");
-
-    if (profile.error) {
-      throw new Error(`Profile error: ${profile.error}`);
-    }
-
     return new Response(
       JSON.stringify({
         id: profile.id,
-        username: profile.name,
-        accessToken: mcData.access_token,
+        username: profile.displayName || profile.userPrincipalName,
+        accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
-        expiresAt: Date.now() + mcData.expires_in * 1000,
+        expiresAt: Date.now() + tokens.expires_in * 1000,
+        xboxLiveToken: xblData.Token,
+        userHash: xblData.DisplayClaims?.xui?.[0]?.uhs,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

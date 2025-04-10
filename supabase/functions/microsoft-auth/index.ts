@@ -28,7 +28,12 @@ serve(async (req) => {
       throw new Error("Microsoft client credentials not configured");
     }
 
-    console.log("Exchanging code for tokens");
+    console.log("Exchanging code for tokens", {
+      origin: req.headers.get("origin"),
+      redirect_uri: req.headers.get("origin")?.includes("craftology.app")
+        ? "https://craftology.app/auth/microsoft"
+        : `${req.headers.get("origin")}/auth/microsoft`,
+    });
     // Exchange code for tokens
     const tokenResponse = await fetch(
       "https://login.live.com/oauth20_token.srf",
@@ -41,7 +46,11 @@ serve(async (req) => {
           client_id: clientId,
           client_secret: clientSecret,
           code,
-          redirect_uri: `${req.headers.get("origin")}/auth/microsoft`,
+          // Allow both production and development redirect URIs
+          redirect_uri: req.headers.get("origin")?.includes("craftology.app")
+            ? "https://craftology.app/auth/microsoft"
+            : `${req.headers.get("origin")}/auth/microsoft`,
+
           grant_type: "authorization_code",
         }),
       },

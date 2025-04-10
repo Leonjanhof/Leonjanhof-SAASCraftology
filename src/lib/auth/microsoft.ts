@@ -15,11 +15,7 @@ export async function openMicrosoftLogin(): Promise<MicrosoftAccount | null> {
     const params = new URLSearchParams({
       client_id: import.meta.env.VITE_MICROSOFT_CLIENT_ID || "",
       response_type: "code",
-      redirect_uri:
-        window.location.hostname === "craftology.app"
-          ? "https://craftology.app/auth/microsoft"
-          : `${window.location.origin}/auth/microsoft`,
-
+      redirect_uri: `https://craftology.app/auth/microsoft`,
       scope: "XboxLive.signin offline_access openid",
       prompt: "select_account",
       state,

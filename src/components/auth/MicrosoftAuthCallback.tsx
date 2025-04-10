@@ -25,12 +25,20 @@ export default function MicrosoftAuthCallback() {
           code_length: code?.length,
         });
 
+        console.log("Sending auth code to edge function:", {
+          codeLength: code.length,
+        });
         const { data, error } = await supabase.functions.invoke(
           "supabase-functions-microsoft-auth",
           {
             body: { code },
+            headers: {
+              "Content-Type": "application/json",
+            },
           },
         );
+
+        console.log("Edge function response:", { data, error });
 
         if (error) {
           console.error("Edge function error:", error);

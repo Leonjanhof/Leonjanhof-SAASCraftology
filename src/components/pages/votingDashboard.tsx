@@ -132,7 +132,7 @@ const VotingDashboard = () => {
                   </span>
                 </div>
               ) : (
-                "Dashboard"
+                "dashboard"
               )}
             </motion.h1>
           </div>
@@ -227,7 +227,7 @@ const VotingDashboard = () => {
         <div className="bg-transparent backdrop-blur-sm rounded-lg shadow-md p-6 min-h-[500px]">
           <div className="text-center py-12">
             <h2 className="text-2xl font-semibold text-gray-700 mb-4">
-              Welcome to your Voting Dashboard
+              Welcome to your Voting dashboard
             </h2>
             <p className="text-gray-500 max-w-md mx-auto">
               This dashboard is currently empty. Future features and statistics

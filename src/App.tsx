@@ -4,6 +4,8 @@ import routes from "tempo-routes";
 import LoginForm from "./components/auth/LoginForm";
 import SignUpForm from "./components/auth/SignUpForm";
 import Dashboard from "./components/pages/dashboard";
+import VotingDashboard from "./components/pages/votingDashboard";
+import HostingDashboard from "./components/pages/hostingDashboard";
 import Success from "./components/pages/success";
 import Home from "./components/pages/home";
 import ProfilesPage from "./components/pages/profilesPage";
@@ -118,6 +120,22 @@ function AppRoutes() {
             element={
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/voting-dashboard"
+            element={
+              <PrivateRoute>
+                <VotingDashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/hosting-dashboard"
+            element={
+              <PrivateRoute>
+                <HostingDashboard />
               </PrivateRoute>
             }
           />

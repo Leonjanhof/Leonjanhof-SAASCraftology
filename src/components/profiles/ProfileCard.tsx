@@ -55,9 +55,15 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   };
 
   const handleDashboardClick = () => {
-    navigate("/dashboard", {
-      state: { profileId: profile.id, profileType: profile.type },
-    });
+    if (profile.type === "voting") {
+      navigate("/voting-dashboard", {
+        state: { profileId: profile.id, profileType: profile.type },
+      });
+    } else {
+      navigate("/hosting-dashboard", {
+        state: { profileId: profile.id, profileType: profile.type },
+      });
+    }
   };
 
   const handleEditClick = () => {

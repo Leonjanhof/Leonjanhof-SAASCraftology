@@ -110,14 +110,14 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                   className="cursor-pointer"
                 >
                   <Edit className="mr-2 h-4 w-4" />
-                  Edit Profile
+                  Edit profile
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleDeleteClick}
                   className="cursor-pointer text-red-500 focus:text-red-500"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Profile
+                  Delete profile
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

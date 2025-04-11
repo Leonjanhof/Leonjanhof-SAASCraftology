@@ -43,7 +43,7 @@ const ProfileCreationPage = () => {
 
   const isEditing = !!id;
 
-  // Only set mode from URL parameter if not editing
+  // Set mode from URL parameter if not editing
   useEffect(() => {
     if (!isEditing && initialFormData.mode !== mode) {
       setInitialFormData({ ...initialFormData, mode });

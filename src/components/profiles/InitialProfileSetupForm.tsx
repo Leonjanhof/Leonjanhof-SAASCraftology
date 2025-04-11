@@ -326,9 +326,10 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
           <Select
             value={formData.mode}
             onValueChange={(value) => handleSelectChange("mode", value)}
+            disabled={isEditing}
           >
             <SelectTrigger
-              className={`w-full focus:ring-green-400 text-green-600 ${errors.mode ? "border-red-500" : ""}`}
+              className={`w-full focus:ring-green-400 text-green-600 ${errors.mode ? "border-red-500" : ""} ${isEditing ? "opacity-70 cursor-not-allowed" : ""}`}
               aria-invalid={!!errors.mode}
               aria-describedby={errors.mode ? "mode-error" : undefined}
             >
@@ -349,6 +350,11 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
               </SelectItem>
             </SelectContent>
           </Select>
+          {isEditing && (
+            <p className="text-xs text-gray-500 mt-1">
+              Profile mode cannot be changed after creation
+            </p>
+          )}
         </div>
       </div>
     </ProfileForm>

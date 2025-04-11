@@ -1,14 +1,91 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import GearsBackground from "../dashboard/GearsBackground";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowLeft, Plus } from "lucide-react";
 import { ProfileGrid, ProfileProps } from "../profiles";
 import { useNavigate } from "react-router-dom";
+import { getVotingProfiles, getHostingProfiles } from "@/lib/api/profiles";
+import { setupTokenRefresh } from "@/lib/api/token-refresh";
+import { toast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 const ProfilesPage = () => {
   const [profiles, setProfiles] = useState<ProfileProps[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Set up token refresh when the page loads
+  useEffect(() => {
+    const cleanup = setupTokenRefresh(60); // Check every 60 minutes
+    return cleanup;
+  }, []);
+
+  // Load profiles when the component mounts
+  useEffect(() => {
+    const loadProfiles = async () => {
+      setIsLoading(true);
+      try {
+        // Get both voting and hosting profiles
+        const { data: votingProfiles, error: votingError } =
+          await getVotingProfiles();
+        const { data: hostingProfiles, error: hostingError } =
+          await getHostingProfiles();
+
+        if (votingError) throw votingError;
+        if (hostingError) throw hostingError;
+
+        // Combine and format profiles
+        const formattedProfiles: ProfileProps[] = [];
+
+        // Add voting profiles
+        if (votingProfiles) {
+          votingProfiles.forEach((profile) => {
+            formattedProfiles.push({
+              id: profile.id,
+              name: profile.name,
+              server: profile.server,
+              type: "voting",
+              createdAt: new Date(profile.created_at || Date.now()),
+              updatedAt: new Date(profile.updated_at || Date.now()),
+            });
+          });
+        }
+
+        // Add hosting profiles
+        if (hostingProfiles) {
+          hostingProfiles.forEach((profile) => {
+            formattedProfiles.push({
+              id: profile.id,
+              name: profile.name,
+              server: profile.server,
+              type: "hosting",
+              createdAt: new Date(profile.created_at || Date.now()),
+              updatedAt: new Date(profile.updated_at || Date.now()),
+            });
+          });
+        }
+
+        // Sort by updated date (newest first)
+        formattedProfiles.sort(
+          (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+        );
+
+        setProfiles(formattedProfiles);
+      } catch (error) {
+        console.error("Error loading profiles:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load profiles",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfiles();
+  }, []);
 
   const openDiscord = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");
@@ -16,17 +93,11 @@ const ProfilesPage = () => {
 
   const addProfile = () => {
     // Navigate to profile creation page
-    navigate("/profile/create");
+    navigate("/profiles/create");
   };
 
-  // This function will be used when returning from the creation page with a new profile
-  const handleAddNewProfile = (name: string) => {
-    const newProfile: ProfileProps = {
-      id: `profile-${profiles.length + 1}`,
-      name: name,
-      createdAt: new Date(),
-    };
-    setProfiles([...profiles, newProfile]);
+  const handleEditProfile = (id: string, type: string) => {
+    navigate(`/profiles/edit/${id}?mode=${type}`);
   };
 
   return (
@@ -69,29 +140,7 @@ const ProfilesPage = () => {
           </div>
           <div className="flex items-center space-x-2">
             <Button
-              onClick={() => (window.location.href = "/")}
-              className="text-white h-9 w-9 p-0 flex items-center justify-center rounded-md group relative overflow-hidden"
-            >
-              <span className="relative z-10 transition-colors duration-300">
-                <svg
-                  className="h-5 w-5 transition-colors duration-300 group-hover:text-green-400"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                  />
-                </svg>
-              </span>
-              <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-            </Button>
-            <Button
-              onClick={() => (window.location.href = "/dashboard")}
+              onClick={() => navigate("/dashboard")}
               className="text-white h-9 w-9 p-0 flex items-center justify-center rounded-md group relative overflow-hidden"
             >
               <span className="relative z-10 transition-colors duration-300">
@@ -118,7 +167,17 @@ const ProfilesPage = () => {
           </div>
         </div>
 
-        <ProfileGrid profiles={profiles} onAddProfile={addProfile} />
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 text-green-400 animate-spin" />
+          </div>
+        ) : (
+          <ProfileGrid
+            profiles={profiles}
+            onAddProfile={addProfile}
+            onEditProfile={handleEditProfile}
+          />
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ProfileForm from "./ProfileForm";
 import {
   DropdownMenu,
@@ -12,14 +12,16 @@ import { AccountsFormData } from "@/lib/hooks/useProfileFormState";
 import { openMicrosoftLogin } from "@/lib/auth/microsoft";
 import MicrosoftAccountRow from "./MicrosoftAccountRow";
 import { toast } from "@/components/ui/use-toast";
+import { getMicrosoftAccounts } from "@/lib/api/profiles";
 
 interface AccountsSetupFormProps {
   formData: AccountsFormData;
   setFormData: (data: AccountsFormData) => void;
   onContinue: () => void;
   onCancel: () => void;
-  onSkip: () => void;
+  onSkip?: () => void;
   isVotingMode?: boolean;
+  profileId?: string;
 }
 
 const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
@@ -29,9 +31,50 @@ const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
   onCancel,
   onSkip,
   isVotingMode = false,
+  profileId,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingAccount, setIsAddingAccount] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load existing accounts if editing a profile
+  useEffect(() => {
+    const loadAccounts = async () => {
+      if (!profileId) return;
+
+      setIsLoading(true);
+      try {
+        const { data, error } = await getMicrosoftAccounts(profileId);
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          setFormData({
+            ...formData,
+            accounts: data.map((acc) => ({
+              id: acc.id,
+              username: acc.username,
+              refreshToken: acc.microsoft_refresh_token,
+              expiresAt: acc.token_expires_at
+                ? new Date(acc.token_expires_at).getTime()
+                : undefined,
+            })),
+            profileId,
+          });
+        }
+      } catch (error) {
+        console.error("Error loading Microsoft accounts:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load Microsoft accounts",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAccounts();
+  }, [profileId, setFormData]);
 
   const handleAddAccount = async () => {
     try {
@@ -67,10 +110,9 @@ const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
               expiresAt: account.expiresAt,
             },
           ],
+          profileId: formData.profileId || profileId,
         };
         setFormData(newFormData);
-        // Save to localStorage
-        localStorage.setItem("profile_accounts", JSON.stringify(newFormData));
 
         toast({
           title: "Account added",
@@ -104,8 +146,6 @@ const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
       accounts: updatedAccounts,
     };
     setFormData(newFormData);
-    // Update localStorage
-    localStorage.setItem("profile_accounts", JSON.stringify(newFormData));
 
     toast({
       title: "Account removed",
@@ -116,14 +156,46 @@ const AccountsSetupForm: React.FC<AccountsSetupFormProps> = ({
   const handleContinue = async () => {
     try {
       setIsSubmitting(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Validate that at least one account is added for voting profiles
+      if (isVotingMode && formData.accounts.length === 0) {
+        toast({
+          title: "No accounts added",
+          description:
+            "You need to add at least one Microsoft account for a voting profile.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       onContinue();
     } catch (err) {
       console.error("Error saving accounts:", err);
+      toast({
+        title: "Error",
+        description: "An error occurred while saving accounts.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <ProfileForm
+        title="Accounts setup"
+        description="Loading accounts..."
+        onCancel={onCancel}
+        onContinue={() => {}}
+        isSubmitting={true}
+      >
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 text-green-400 animate-spin" />
+        </div>
+      </ProfileForm>
+    );
+  }
 
   return (
     <ProfileForm

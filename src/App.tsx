@@ -130,7 +130,15 @@ function AppRoutes() {
             }
           />
           <Route
-            path="/profile/create"
+            path="/profiles/create"
+            element={
+              <PrivateRoute>
+                <ProfileCreationPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profiles/edit/:id"
             element={
               <PrivateRoute>
                 <ProfileCreationPage />

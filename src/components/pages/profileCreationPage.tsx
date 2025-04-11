@@ -1,24 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import GearsBackground from "../dashboard/GearsBackground";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import InitialProfileSetupForm from "../profiles/InitialProfileSetupForm";
-import AccountsSetupFormModified from "@/components/profiles/AccountsSetupForm";
-import { openMicrosoftLogin } from "@/lib/auth/microsoft";
+import AccountsSetupForm from "@/components/profiles/AccountsSetupForm";
 import HubSetupForm from "../profiles/HubSetupForm";
 import AFKSetupForm from "../profiles/AFKSetupForm";
 import ReconnectSetupForm from "../profiles/ReconnectSetupForm";
 import FormTransitionWrapper from "../profiles/FormTransitionWrapper";
 import { useProfileFormState } from "@/lib/hooks/useProfileFormState";
+import { toast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 type FormStep = "initial" | "accounts" | "hub" | "afk" | "reconnect";
 
 const ProfileCreationPage = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get("mode") || "voting";
   const [currentStep, setCurrentStep] = useState<FormStep>("initial");
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const {
     initialFormData,
     setInitialFormData,
@@ -30,13 +36,18 @@ const ProfileCreationPage = () => {
     setAFKFormData,
     reconnectFormData,
     setReconnectFormData,
-  } = useProfileFormState();
+    saveProfile,
+    loading,
+    error,
+  } = useProfileFormState(id);
+
+  const isEditing = !!id;
 
   const openDiscord = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     setDirection("forward");
     switch (currentStep) {
       case "initial":
@@ -47,7 +58,24 @@ const ProfileCreationPage = () => {
         break;
       case "accounts":
         if (initialFormData.mode === "voting") {
-          navigate("/profiles");
+          // For voting profiles, save after accounts step
+          setIsSubmitting(true);
+          try {
+            const result = await saveProfile();
+            if (result.success) {
+              toast({
+                title: "Success",
+                description: isEditing
+                  ? "Profile updated successfully"
+                  : "Profile created successfully",
+              });
+              navigate("/profiles");
+            }
+          } catch (err) {
+            console.error("Error saving profile:", err);
+          } finally {
+            setIsSubmitting(false);
+          }
         } else {
           setCurrentStep("afk");
         }
@@ -56,7 +84,24 @@ const ProfileCreationPage = () => {
         setCurrentStep("reconnect");
         break;
       case "reconnect":
-        navigate("/profiles");
+        // For hosting profiles, save after reconnect step
+        setIsSubmitting(true);
+        try {
+          const result = await saveProfile();
+          if (result.success) {
+            toast({
+              title: "Success",
+              description: isEditing
+                ? "Profile updated successfully"
+                : "Profile created successfully",
+            });
+            navigate("/profiles");
+          }
+        } catch (err) {
+          console.error("Error saving profile:", err);
+        } finally {
+          setIsSubmitting(false);
+        }
         break;
     }
   };
@@ -68,23 +113,30 @@ const ProfileCreationPage = () => {
         navigate("/profiles");
         break;
       case "accounts":
-        if (initialFormData.mode === "voting") {
-          setCurrentStep("hub");
-        } else {
-          setCurrentStep("hub");
-        }
+        setCurrentStep("hub");
         break;
       case "hub":
         setCurrentStep("initial");
         break;
       case "afk":
-        setCurrentStep("hub");
+        setCurrentStep("accounts");
         break;
       case "reconnect":
         setCurrentStep("afk");
         break;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <GearsBackground />
+        <div className="max-w-7xl mx-auto px-4 py-8 relative z-10 flex items-center justify-center h-screen">
+          <Loader2 className="h-8 w-8 text-green-400 animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -98,31 +150,35 @@ const ProfileCreationPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              {"Profile creation".split(" ").map((word, wordIndex) => (
-                <span key={wordIndex} className="inline-block">
-                  {word.split("").map((letter, index) => (
-                    <motion.span
-                      key={index}
-                      className={`inline-block ${wordIndex === 1 && index < 8 ? "text-green-400" : ""}`}
-                      initial={{ y: 0 }}
-                      animate={{ y: [-20, 0] }}
-                      transition={{
-                        delay: (wordIndex * word.length + index) * 0.05,
-                        duration: 0.5,
-                        times: [0, 1],
-                        ease: "easeOut",
-                      }}
-                    >
-                      {letter}
-                    </motion.span>
-                  ))}
-                  {wordIndex === 0 && (
-                    <span className="inline-block">&nbsp;</span>
-                  )}
-                </span>
-              ))}
+              {(isEditing ? "Edit profile" : "Profile creation")
+                .split(" ")
+                .map((word, wordIndex) => (
+                  <span key={wordIndex} className="inline-block">
+                    {word.split("").map((letter, index) => (
+                      <motion.span
+                        key={index}
+                        className={`inline-block ${wordIndex === 1 && index < 8 ? "text-green-400" : ""}`}
+                        initial={{ y: 0 }}
+                        animate={{ y: [-20, 0] }}
+                        transition={{
+                          delay: (wordIndex * word.length + index) * 0.05,
+                          duration: 0.5,
+                          times: [0, 1],
+                          ease: "easeOut",
+                        }}
+                      >
+                        {letter}
+                      </motion.span>
+                    ))}
+                    {wordIndex === 0 && (
+                      <span className="inline-block">&nbsp;</span>
+                    )}
+                  </span>
+                ))}
             </motion.h1>
-            <p className="text-gray-600">Create a profile</p>
+            <p className="text-gray-600">
+              {isEditing ? "Edit your profile" : "Create a profile"}
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -169,6 +225,7 @@ const ProfileCreationPage = () => {
                 setFormData={setInitialFormData}
                 onContinue={handleContinue}
                 onCancel={handleCancel}
+                isEditing={isEditing}
               />
             </FormTransitionWrapper>
 
@@ -176,13 +233,15 @@ const ProfileCreationPage = () => {
               isVisible={currentStep === "accounts"}
               direction={direction}
             >
-              <AccountsSetupFormModified
+              <AccountsSetupForm
                 formData={accountsFormData}
                 setFormData={setAccountsFormData}
                 onContinue={handleContinue}
                 onCancel={handleCancel}
                 onSkip={handleContinue}
                 isVotingMode={initialFormData.mode === "voting"}
+                profileId={id}
+                isSubmitting={isSubmitting}
               />
             </FormTransitionWrapper>
 
@@ -220,6 +279,7 @@ const ProfileCreationPage = () => {
                 onContinue={handleContinue}
                 onCancel={handleCancel}
                 isLastForm={true}
+                isSubmitting={isSubmitting}
               />
             </FormTransitionWrapper>
           </motion.div>

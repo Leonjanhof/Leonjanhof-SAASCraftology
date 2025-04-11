@@ -8,6 +8,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface ProfileFormProps {
   children: ReactNode;
@@ -43,6 +44,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         <Button
           variant="outline"
           onClick={onCancel}
+          disabled={isSubmitting}
           className="bg-white text-green-400 hover:bg-green-400 hover:text-white border-green-400 transition-colors duration-300"
         >
           Cancel
@@ -51,6 +53,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
           <Button
             variant="outline"
             onClick={onSkip}
+            disabled={isSubmitting}
             className="bg-white text-green-400 hover:bg-green-400 hover:text-white border-green-400 transition-colors duration-300"
           >
             Skip
@@ -61,7 +64,14 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
           disabled={isSubmitting}
           className="bg-green-400 text-white hover:bg-white hover:text-green-400 hover:border-green-400 border border-transparent hover:border-green-400 transition-colors duration-300"
         >
-          {isSubmitting ? "Processing..." : continueText}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            continueText
+          )}
         </Button>
       </CardFooter>
     </Card>

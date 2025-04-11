@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ProfileForm from "./ProfileForm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,15 @@ interface InitialProfileSetupFormProps {
   setFormData: (data: InitialFormData) => void;
   onContinue: () => void;
   onCancel: () => void;
+  isEditing?: boolean;
+}
+
+interface ValidationErrors {
+  profileName?: string;
+  serverAddress?: string;
+  protocol?: string;
+  mode?: string;
+  general?: string;
 }
 
 const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
@@ -24,39 +33,83 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
   setFormData,
   onContinue,
   onCancel,
+  isEditing = false,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<ValidationErrors>({});
+
+  // Clear errors when component mounts or when editing status changes
+  useEffect(() => {
+    setErrors({});
+  }, [isEditing]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    if (error) setError("");
+
+    // Clear specific error when field is changed
+    if (errors[name as keyof ValidationErrors]) {
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
   };
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData({ ...formData, [name]: value });
-    if (error) setError("");
+
+    // Clear specific error when field is changed
+    if (errors[name as keyof ValidationErrors]) {
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
   };
 
-  const validateForm = () => {
+  const validateServerAddress = (address: string): boolean => {
+    // Basic validation for server address
+    // Allow hostnames, IP addresses, and optional port numbers
+    const serverRegex =
+      /^[a-zA-Z0-9][a-zA-Z0-9-_.]*\.[a-zA-Z0-9-_.]+$|^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d{1,5})?$/;
+    return serverRegex.test(address) || address.toLowerCase() === "localhost";
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: ValidationErrors = {};
+    let isValid = true;
+
+    // Validate profile name
     if (!formData.profileName.trim()) {
-      setError("Please enter a profile name");
-      return false;
+      newErrors.profileName = "Profile name is required";
+      isValid = false;
+    } else if (formData.profileName.length > 50) {
+      newErrors.profileName = "Profile name must be less than 50 characters";
+      isValid = false;
     }
+
+    // Validate server address
     if (!formData.serverAddress.trim()) {
-      setError("Please enter a server address");
-      return false;
+      newErrors.serverAddress = "Server address is required";
+      isValid = false;
+    } else if (!validateServerAddress(formData.serverAddress)) {
+      newErrors.serverAddress =
+        "Please enter a valid server address (hostname or IP)";
+      isValid = false;
     }
+
+    // Validate protocol
     if (!formData.protocol) {
-      setError("Please select a protocol");
-      return false;
+      newErrors.protocol = "Protocol selection is required";
+      isValid = false;
     }
+
+    // Validate mode
     if (!formData.mode) {
-      setError("Please select a mode");
-      return false;
+      newErrors.mode = "Mode selection is required";
+      isValid = false;
+    } else if (formData.mode !== "voting" && formData.mode !== "hosting") {
+      newErrors.mode = "Invalid mode selected";
+      isValid = false;
     }
-    return true;
+
+    setErrors(newErrors);
+    return isValid;
   };
 
   const handleContinue = async () => {
@@ -64,11 +117,13 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
 
     try {
       setIsSubmitting(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Remove artificial delay for better UX
       onContinue();
     } catch (err) {
-      console.error("Error creating profile:", err);
-      setError("Failed to create profile. Please try again.");
+      console.error("Error processing profile data:", err);
+      setErrors({
+        general: "Failed to process profile data. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -76,37 +131,63 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
 
   return (
     <ProfileForm
-      title="Initial profile setup"
-      description="Configure your profile settings"
+      title={isEditing ? "Edit profile" : "Initial profile setup"}
+      description={
+        isEditing
+          ? "Update your profile settings"
+          : "Configure your profile settings"
+      }
       onCancel={onCancel}
       onContinue={handleContinue}
       isSubmitting={isSubmitting}
     >
       <div className="space-y-6">
-        {error && <FormMessage type="error" message={error} className="mb-4" />}
+        {errors.general && (
+          <FormMessage type="error" message={errors.general} className="mb-4" />
+        )}
 
         <div className="space-y-2">
-          <Label htmlFor="profileName">Profile name</Label>
+          <Label htmlFor="profileName" className="flex justify-between">
+            <span>Profile name</span>
+            <span className="text-xs text-red-500">
+              {errors.profileName ? errors.profileName : ""}
+            </span>
+          </Label>
           <Input
             id="profileName"
             name="profileName"
             placeholder="Enter profile name"
             value={formData.profileName}
             onChange={handleInputChange}
-            className="text-green-600 focus-visible:ring-green-400 placeholder:text-green-600/50"
+            className={`text-green-600 focus-visible:ring-green-400 placeholder:text-green-600/50 ${errors.profileName ? "border-red-500" : ""}`}
+            aria-invalid={!!errors.profileName}
+            aria-describedby={
+              errors.profileName ? "profileName-error" : undefined
+            }
+            required
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="serverAddress">Server address</Label>
+          <Label htmlFor="serverAddress" className="flex justify-between">
+            <span>Server address</span>
+            <span className="text-xs text-red-500">
+              {errors.serverAddress ? errors.serverAddress : ""}
+            </span>
+          </Label>
           <div className="relative">
             <Input
               id="serverAddress"
               name="serverAddress"
-              placeholder="Enter server address"
+              placeholder="Enter server address (e.g., mc.example.com)"
               value={formData.serverAddress}
               onChange={handleInputChange}
-              className="text-green-600 focus-visible:ring-green-400 placeholder:text-green-600/50 pr-[72px]"
+              className={`text-green-600 focus-visible:ring-green-400 placeholder:text-green-600/50 pr-[72px] ${errors.serverAddress ? "border-red-500" : ""}`}
+              aria-invalid={!!errors.serverAddress}
+              aria-describedby={
+                errors.serverAddress ? "serverAddress-error" : undefined
+              }
+              required
             />
             <div className="absolute inset-y-0 right-0 flex items-center pointer-events-none">
               <span className="text-sm px-2 py-1 bg-gray-100 rounded text-green-600 mr-2">
@@ -117,12 +198,21 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="protocol">Select protocol</Label>
+          <Label htmlFor="protocol" className="flex justify-between">
+            <span>Select protocol</span>
+            <span className="text-xs text-red-500">
+              {errors.protocol ? errors.protocol : ""}
+            </span>
+          </Label>
           <Select
             value={formData.protocol}
             onValueChange={(value) => handleSelectChange("protocol", value)}
           >
-            <SelectTrigger className="w-full focus:ring-green-400 text-green-600">
+            <SelectTrigger
+              className={`w-full focus:ring-green-400 text-green-600 ${errors.protocol ? "border-red-500" : ""}`}
+              aria-invalid={!!errors.protocol}
+              aria-describedby={errors.protocol ? "protocol-error" : undefined}
+            >
               <SelectValue placeholder="Select protocol" />
             </SelectTrigger>
             <SelectContent>
@@ -227,12 +317,21 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="mode">Select mode</Label>
+          <Label htmlFor="mode" className="flex justify-between">
+            <span>Select mode</span>
+            <span className="text-xs text-red-500">
+              {errors.mode ? errors.mode : ""}
+            </span>
+          </Label>
           <Select
             value={formData.mode}
             onValueChange={(value) => handleSelectChange("mode", value)}
           >
-            <SelectTrigger className="w-full focus:ring-green-400 text-green-600">
+            <SelectTrigger
+              className={`w-full focus:ring-green-400 text-green-600 ${errors.mode ? "border-red-500" : ""}`}
+              aria-invalid={!!errors.mode}
+              aria-describedby={errors.mode ? "mode-error" : undefined}
+            >
               <SelectValue placeholder="Select mode" />
             </SelectTrigger>
             <SelectContent>
@@ -243,7 +342,7 @@ const InitialProfileSetupForm: React.FC<InitialProfileSetupFormProps> = ({
                 Voting
               </SelectItem>
               <SelectItem
-                value="voting-hosting"
+                value="hosting"
                 className="text-green-600 hover:text-green-600"
               >
                 Hosting

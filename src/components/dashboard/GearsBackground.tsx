@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, memo } from "react";
 
 interface Gear {
   x: number;
@@ -13,7 +13,7 @@ interface Gear {
   isHovered: boolean;
 }
 
-const GearsBackground: React.FC = () => {
+const GearsBackground: React.FC = memo(() => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gearsRef = useRef<Gear[]>([]);
   const animationFrameRef = useRef<number>(0);
@@ -24,32 +24,32 @@ const GearsBackground: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
       initGears();
     };
 
     const initGears = () => {
-      // Clear existing gears
       gearsRef.current = [];
 
-      // Create a variety of gears across the canvas
       const gearCount = Math.max(
         5,
         Math.floor((canvas.width * canvas.height) / 100000),
       );
 
-      // Colors that match the theme
       const colors = [
-        "rgba(229, 231, 235, 0.3)", // Light gray
-        "rgba(209, 213, 219, 0.3)", // Medium gray
-        "rgba(156, 163, 175, 0.3)", // Dark gray
-        "rgba(74, 222, 128, 0.2)", // Light green
-        "rgba(34, 197, 94, 0.2)", // Medium green
+        "rgba(229, 231, 235, 0.3)",
+        "rgba(209, 213, 219, 0.3)",
+        "rgba(156, 163, 175, 0.3)",
+        "rgba(74, 222, 128, 0.2)",
+        "rgba(34, 197, 94, 0.2)",
       ];
 
       for (let i = 0; i < gearCount; i++) {
@@ -81,30 +81,20 @@ const GearsBackground: React.FC = () => {
       ctx.translate(x, y);
       ctx.rotate(rotation);
 
-      // Draw gear body
+      const innerRadius = radius * 0.7;
+      const toothDepth = radius - innerRadius;
+      const angleStep = (Math.PI * 2) / teeth;
+
       ctx.beginPath();
       ctx.fillStyle = color;
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
 
-      // Inner circle
-      const innerRadius = radius * 0.7;
-      ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
-      ctx.fill();
-
       // Draw teeth
-      const toothDepth = radius - innerRadius;
-      const angleStep = (Math.PI * 2) / teeth;
-
-      ctx.beginPath();
       for (let i = 0; i < teeth; i++) {
         const angle = i * angleStep;
-
-        // Outer point of tooth
         const outerX = Math.cos(angle) * radius;
         const outerY = Math.sin(angle) * radius;
-
-        // Inner points of tooth (sides)
         const innerAngle1 = angle - angleStep * 0.25;
         const innerAngle2 = angle + angleStep * 0.25;
         const innerX1 = Math.cos(innerAngle1) * innerRadius;
@@ -112,10 +102,7 @@ const GearsBackground: React.FC = () => {
         const innerX2 = Math.cos(innerAngle2) * innerRadius;
         const innerY2 = Math.sin(innerAngle2) * innerRadius;
 
-        if (i === 0) {
-          ctx.moveTo(innerX1, innerY1);
-        }
-
+        if (i === 0) ctx.moveTo(innerX1, innerY1);
         ctx.lineTo(outerX, outerY);
         ctx.lineTo(innerX2, innerY2);
       }
@@ -135,31 +122,23 @@ const GearsBackground: React.FC = () => {
       ctx.restore();
     };
 
-    // Check if mouse is over a gear
     const checkGearHover = (mouseX: number, mouseY: number) => {
       let isOverAnyGear = false;
 
-      // Check each gear in reverse order (to handle overlapping gears properly)
       for (let i = gearsRef.current.length - 1; i >= 0; i--) {
         const gear = gearsRef.current[i];
         const dx = mouseX - gear.x;
         const dy = mouseY - gear.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-
-        // Check if mouse is within the gear's radius
         const isHovered = distance <= gear.radius;
 
-        // Only update if hover state has changed
         if (isHovered !== gear.isHovered) {
           gear.isHovered = isHovered;
-
           if (isHovered) {
-            // Enhance the hovered gear
-            gear.color = "rgba(74, 222, 128, 0.4)"; // Brighter green
-            gear.speed = gear.originalSpeed * 3; // Speed up
+            gear.color = "rgba(74, 222, 128, 0.4)";
+            gear.speed = gear.originalSpeed * 3;
             isOverAnyGear = true;
           } else {
-            // Reset to original state
             gear.color = gear.originalColor;
             gear.speed = gear.originalSpeed;
           }
@@ -167,11 +146,10 @@ const GearsBackground: React.FC = () => {
 
         if (isHovered) {
           isOverAnyGear = true;
-          break; // Only interact with the topmost gear
+          break;
         }
       }
 
-      // Update cursor style
       setCursorStyle(isOverAnyGear ? "pointer" : "default");
     };
 
@@ -179,31 +157,31 @@ const GearsBackground: React.FC = () => {
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
-
       mousePositionRef.current = { x: mouseX, y: mouseY };
       checkGearHover(mouseX, mouseY);
     };
 
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let lastTime = performance.now();
+    const animate = (currentTime: number) => {
+      const deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
+      ctx.fillStyle = "#f9fafb";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       gearsRef.current.forEach((gear) => {
-        // Update rotation
-        gear.rotation += gear.speed;
-
-        // Draw the gear
+        gear.rotation += gear.speed * (deltaTime / 16.67); // Normalize to 60fps
         drawGear(ctx, gear);
       });
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    // Add event listeners
     window.addEventListener("resize", resizeCanvas);
     canvas.addEventListener("mousemove", handleMouseMove);
 
     resizeCanvas();
-    animate();
+    animate(performance.now());
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
@@ -213,12 +191,29 @@ const GearsBackground: React.FC = () => {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed top-0 left-0 w-full h-full -z-10 bg-gray-50"
-      style={{ cursor: cursorStyle }}
-    />
+    <div
+      className="fixed inset-0 -z-10 overflow-hidden bg-gray-50"
+      style={{
+        willChange: "transform",
+        transform: "translateZ(0)",
+        backfaceVisibility: "hidden",
+        WebkitOverflowScrolling: "touch",
+        overscrollBehavior: "none",
+        touchAction: "none",
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full"
+        style={{
+          cursor: cursorStyle,
+          touchAction: "none",
+        }}
+      />
+    </div>
   );
-};
+});
+
+GearsBackground.displayName = "GearsBackground";
 
 export default GearsBackground;

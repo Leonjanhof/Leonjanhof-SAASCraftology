@@ -19,6 +19,9 @@ const GearsBackground: React.FC = memo(() => {
   const animationFrameRef = useRef<number>(0);
   const mousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [cursorStyle, setCursorStyle] = useState<string>("default");
+  const isScrollingRef = useRef<boolean>(false);
+  const scrollTimeoutRef = useRef<number | null>(null);
+  const isVisibleRef = useRef<boolean>(true);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -41,7 +44,7 @@ const GearsBackground: React.FC = memo(() => {
 
       const gearCount = Math.max(
         5,
-        Math.floor((canvas.width * canvas.height) / 100000),
+        Math.floor((canvas.width * canvas.height) / 150000), // Reduced gear count for better performance
       );
 
       const colors = [
@@ -123,6 +126,8 @@ const GearsBackground: React.FC = memo(() => {
     };
 
     const checkGearHover = (mouseX: number, mouseY: number) => {
+      if (isScrollingRef.current) return;
+
       let isOverAnyGear = false;
 
       for (let i = gearsRef.current.length - 1; i >= 0; i--) {
@@ -154,6 +159,8 @@ const GearsBackground: React.FC = memo(() => {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (isScrollingRef.current) return;
+
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -161,24 +168,60 @@ const GearsBackground: React.FC = memo(() => {
       checkGearHover(mouseX, mouseY);
     };
 
+    const handleScroll = () => {
+      isScrollingRef.current = true;
+
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+
+      // Set a timeout to stop considering scrolling after 150ms of no scroll events
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        isScrollingRef.current = false;
+        scrollTimeoutRef.current = null;
+      }, 150);
+    };
+
+    // Use Intersection Observer to detect when the canvas is visible
+    const observer = new IntersectionObserver(
+      (entries) => {
+        isVisibleRef.current = entries[0].isIntersecting;
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(canvas);
+
     let lastTime = performance.now();
+    let lastAnimationTime = 0;
+    const targetFPS = 30; // Lower FPS for better performance
+    const frameInterval = 1000 / targetFPS;
+
     const animate = (currentTime: number) => {
       const deltaTime = currentTime - lastTime;
-      lastTime = currentTime;
+      const elapsed = currentTime - lastAnimationTime;
 
-      ctx.fillStyle = "#f9fafb";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Only render if enough time has passed (frame limiting) and not scrolling
+      if (elapsed >= frameInterval && isVisibleRef.current) {
+        lastTime = currentTime;
+        lastAnimationTime = currentTime;
 
-      gearsRef.current.forEach((gear) => {
-        gear.rotation += gear.speed * (deltaTime / 16.67); // Normalize to 60fps
-        drawGear(ctx, gear);
-      });
+        ctx.fillStyle = "#f9fafb";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        gearsRef.current.forEach((gear) => {
+          gear.rotation += gear.speed * (deltaTime / 16.67); // Normalize to 60fps
+          drawGear(ctx, gear);
+        });
+      }
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     window.addEventListener("resize", resizeCanvas);
     canvas.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     resizeCanvas();
     animate(performance.now());
@@ -186,6 +229,13 @@ const GearsBackground: React.FC = memo(() => {
     return () => {
       window.removeEventListener("resize", resizeCanvas);
       canvas.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("scroll", handleScroll);
+      observer.disconnect();
+
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+
       cancelAnimationFrame(animationFrameRef.current);
     };
   }, []);
@@ -208,6 +258,8 @@ const GearsBackground: React.FC = memo(() => {
         style={{
           cursor: cursorStyle,
           touchAction: "none",
+          willChange: "transform",
+          transform: "translateZ(0)",
         }}
       />
     </div>

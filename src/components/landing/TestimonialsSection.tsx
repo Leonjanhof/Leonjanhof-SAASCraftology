@@ -6,10 +6,11 @@ import {
   useTransform,
   useSpring,
   useAnimationControls,
+  animate,
 } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
+import { Star, MessageSquare } from "lucide-react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import TextAnimation from "./animations/TextAnimation";
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
@@ -24,8 +25,17 @@ interface TestimonialProps {
 }
 
 const Testimonial: React.FC<
-  TestimonialProps & { onDragEnd?: (info: any) => void }
-> = ({ content, author, role, company, avatarSeed, rating = 5, onDragEnd }) => {
+  TestimonialProps & { onDragEnd?: (info: any) => void; onTap?: () => void }
+> = ({
+  content,
+  author,
+  role,
+  company,
+  avatarSeed,
+  rating = 5,
+  onDragEnd,
+  onTap,
+}) => {
   const controls = useAnimationControls();
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-10, 10]);
@@ -59,6 +69,7 @@ const Testimonial: React.FC<
           transition: { type: "spring", stiffness: 300, damping: 20 },
         });
       }}
+      onClick={() => onTap && onTap()}
       className="h-full w-full px-2 snap-center relative z-10"
     >
       <Card className="h-full shadow-lg hover:shadow-xl transition-all duration-300 hover:shadow-2xl">
@@ -97,8 +108,11 @@ const TestimonialsSection: React.FC = () => {
   const [testimonials, setTestimonials] = useState<TestimonialProps[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const realtimeSubscriptionRef = useRef<RealtimeChannel | null>(null);
+  const spinAnimationRef = useRef<number | null>(null);
+  const velocityRef = useRef(0);
 
   // Responsive breakpoints
   const isSmall = useMediaQuery("(max-width: 640px)");
@@ -229,45 +243,100 @@ const TestimonialsSection: React.FC = () => {
     },
   };
 
-  // Handle navigation
-  const handlePrev = () => {
-    if (currentIndex > 0 && !isAnimating) {
-      setIsAnimating(true);
-      setCurrentIndex(currentIndex - 1);
-      setTimeout(() => setIsAnimating(false), 500);
-    }
+  // Start spinning animation
+  const startSpinning = (initialVelocity: number) => {
+    if (isSpinning) return;
+
+    setIsSpinning(true);
+    velocityRef.current = initialVelocity;
+
+    let lastTimestamp = performance.now();
+    let accumulatedTime = 0;
+    const frameInterval = 150; // Time between index changes in ms
+
+    const spin = (timestamp: number) => {
+      if (!carouselRef.current || Math.abs(velocityRef.current) < 0.1) {
+        setIsSpinning(false);
+        velocityRef.current = 0;
+        return;
+      }
+
+      // Calculate time delta
+      const delta = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
+      accumulatedTime += delta;
+
+      // Only update index at certain intervals to create a wheel-like effect
+      if (accumulatedTime >= frameInterval) {
+        // Calculate new index based on velocity direction
+        const direction = velocityRef.current > 0 ? 1 : -1;
+        const newIndex =
+          (currentIndex + direction + testimonials.length) %
+          testimonials.length;
+
+        setCurrentIndex(newIndex);
+        accumulatedTime = 0; // Reset accumulated time
+      }
+
+      // Reduce velocity (simulate friction)
+      velocityRef.current = velocityRef.current * 0.97;
+
+      spinAnimationRef.current = requestAnimationFrame(spin);
+    };
+
+    spinAnimationRef.current = requestAnimationFrame(spin);
   };
 
-  const handleNext = () => {
-    if (currentIndex < maxIndex && !isAnimating) {
-      setIsAnimating(true);
-      setCurrentIndex(currentIndex + 1);
-      setTimeout(() => setIsAnimating(false), 500);
+  // Stop spinning animation
+  const stopSpinning = () => {
+    if (spinAnimationRef.current) {
+      cancelAnimationFrame(spinAnimationRef.current);
+      spinAnimationRef.current = null;
+    }
+    setIsSpinning(false);
+    velocityRef.current = 0;
+  };
+
+  // Handle tap to stop spinning
+  const handleTap = () => {
+    if (isSpinning) {
+      stopSpinning();
     }
   };
 
   // Handle drag end
   const handleDragEnd = (info: any) => {
-    const threshold = 100; // minimum distance to trigger a slide
+    const velocity = info.velocity.x;
+    const threshold = 50; // Lower threshold to make it easier to trigger
 
-    if (info.offset.x > threshold && currentIndex > 0) {
-      handlePrev();
-    } else if (info.offset.x < -threshold && currentIndex < maxIndex) {
-      handleNext();
+    if (Math.abs(velocity) > threshold) {
+      // Start spinning with initial velocity proportional to drag velocity
+      startSpinning(velocity / 200); // Increased velocity factor for more noticeable spinning
     }
   };
 
   // Scroll to current index when it changes
   useEffect(() => {
-    if (carouselRef.current) {
-      const scrollAmount =
-        currentIndex * (carouselRef.current.scrollWidth / testimonials.length);
+    if (carouselRef.current && testimonials.length > 0) {
+      const itemWidth = carouselRef.current.scrollWidth / testimonials.length;
+      const scrollAmount = currentIndex * itemWidth;
+
+      // Use auto behavior during spinning for smoother animation
       carouselRef.current.scrollTo({
         left: scrollAmount,
-        behavior: "smooth",
+        behavior: isSpinning ? "auto" : "smooth",
       });
     }
-  }, [currentIndex, testimonials.length]);
+  }, [currentIndex, testimonials.length, isSpinning]);
+
+  // Clean up animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (spinAnimationRef.current) {
+        cancelAnimationFrame(spinAnimationRef.current);
+      }
+    };
+  }, []);
 
   return (
     <section className="py-20 bg-white relative z-0">
@@ -298,7 +367,7 @@ const TestimonialsSection: React.FC = () => {
             <div className="overflow-hidden">
               <motion.div
                 ref={carouselRef}
-                className="flex snap-x snap-mandatory overflow-x-auto scrollbar-hide scroll-smooth"
+                className="flex snap-x snap-mandatory overflow-x-auto scrollbar-hide"
                 variants={containerVariants}
                 initial="hidden"
                 whileInView="visible"
@@ -319,57 +388,20 @@ const TestimonialsSection: React.FC = () => {
                       avatarSeed={testimonial.avatarSeed}
                       rating={testimonial.rating}
                       onDragEnd={handleDragEnd}
+                      onTap={handleTap}
                     />
                   </motion.div>
                 ))}
               </motion.div>
             </div>
 
-            {/* Navigation buttons */}
-            {testimonials.length > itemsToShow && (
-              <div className="flex justify-between w-full absolute top-1/2 transform -translate-y-1/2 px-4 z-10">
-                <button
-                  onClick={handlePrev}
-                  disabled={currentIndex === 0 || isAnimating}
-                  className={`p-2 rounded-full bg-white shadow-lg hover:bg-gray-100 transition-colors ${currentIndex === 0 ? "opacity-50 cursor-not-allowed" : "opacity-100"}`}
-                  aria-label="Previous testimonial"
-                >
-                  <ChevronLeft className="h-6 w-6 text-green-400" />
-                </button>
-                <button
-                  onClick={handleNext}
-                  disabled={currentIndex >= maxIndex || isAnimating}
-                  className={`p-2 rounded-full bg-white shadow-lg hover:bg-gray-100 transition-colors ${currentIndex >= maxIndex ? "opacity-50 cursor-not-allowed" : "opacity-100"}`}
-                  aria-label="Next testimonial"
-                >
-                  <ChevronRight className="h-6 w-6 text-green-400" />
-                </button>
-              </div>
-            )}
-
-            {/* Pagination dots */}
-            {testimonials.length > itemsToShow && (
-              <div className="flex justify-center mt-6 space-x-2">
-                {Array.from({ length: maxIndex + 1 }).map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      if (!isAnimating) {
-                        setIsAnimating(true);
-                        setCurrentIndex(index);
-                        setTimeout(() => setIsAnimating(false), 500);
-                      }
-                    }}
-                    className={`h-2 w-2 rounded-full transition-all ${currentIndex === index ? "bg-green-400 w-4" : "bg-gray-300"}`}
-                    aria-label={`Go to testimonial ${index + 1}`}
-                  />
-                ))}
-              </div>
-            )}
-
             {/* Instructions for users */}
             <div className="text-center mt-6 text-sm text-gray-500">
-              <p>Drag a testimonial to spin through reviews</p>
+              <p>
+                {isSpinning
+                  ? "Tap to stop spinning"
+                  : "Drag a testimonial to spin the wheel of reviews"}
+              </p>
             </div>
           </div>
         ) : (

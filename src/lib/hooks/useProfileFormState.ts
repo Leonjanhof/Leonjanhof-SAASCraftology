@@ -84,11 +84,6 @@ export const useProfileFormState = (existingProfileId?: string) => {
   // Load existing profile data if editing
   useEffect(() => {
     const loadExistingProfile = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) {
-        console.error("User not authenticated");
-        return;
-      }
       if (!existingProfileId) return;
 
       setLoading(true);
@@ -97,18 +92,10 @@ export const useProfileFormState = (existingProfileId?: string) => {
       try {
         // First, determine if this is a voting or hosting profile
         // Try to get the specific profile directly first
-        const { data: votingProfile } = await supabase
-          .rpc("get_voting_profile", {
-            profile_id: existingProfileId,
-            user_id: userData.user.id,
-          })
-          .single();
-        const { data: hostingProfile } = await supabase
-          .rpc("get_hosting_profile", {
-            profile_id: existingProfileId,
-            user_id: userData.user.id,
-          })
-          .single();
+        const { data: votingProfile } =
+          await getVotingProfile(existingProfileId);
+        const { data: hostingProfile } =
+          await getHostingProfile(existingProfileId);
 
         let profile;
         let mode = "";

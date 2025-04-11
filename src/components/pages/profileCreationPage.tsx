@@ -45,10 +45,13 @@ const ProfileCreationPage = () => {
 
   // Set mode from URL parameter if not editing
   useEffect(() => {
-    if (!isEditing && initialFormData.mode !== mode) {
-      setInitialFormData({ ...initialFormData, mode });
+    if (!isEditing) {
+      setInitialFormData((prevData) => ({
+        ...prevData,
+        mode: mode,
+      }));
     }
-  }, [isEditing, initialFormData, mode, setInitialFormData]);
+  }, [isEditing, mode, setInitialFormData]);
 
   const openDiscord = () => {
     window.open("https://discord.gg/5MbAqAhaCR", "_blank");

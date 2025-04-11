@@ -91,21 +91,17 @@ export const useProfileFormState = (existingProfileId?: string) => {
 
       try {
         // First, determine if this is a voting or hosting profile
-        const { data: votingProfile } = await getVotingProfiles();
-        const { data: hostingProfile } = await getHostingProfiles();
-
-        const votingMatch = votingProfile?.find(
-          (p) => p.id === existingProfileId,
-        );
-        const hostingMatch = hostingProfile?.find(
-          (p) => p.id === existingProfileId,
-        );
+        // Try to get the specific profile directly first
+        const { data: votingProfile } =
+          await getVotingProfile(existingProfileId);
+        const { data: hostingProfile } =
+          await getHostingProfile(existingProfileId);
 
         let profile;
         let mode = "";
 
-        if (votingMatch) {
-          profile = votingMatch;
+        if (votingProfile) {
+          profile = votingProfile;
           mode = "voting";
 
           // Load Microsoft accounts for this profile
@@ -121,8 +117,8 @@ export const useProfileFormState = (existingProfileId?: string) => {
               profileId: existingProfileId,
             });
           }
-        } else if (hostingMatch) {
-          profile = hostingMatch;
+        } else if (hostingProfile) {
+          profile = hostingProfile;
           mode = "hosting";
         } else {
           throw new Error("Profile not found");

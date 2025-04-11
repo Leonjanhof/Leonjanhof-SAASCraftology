@@ -107,24 +107,29 @@ const ProfileManager: React.FC = () => {
 
   const handleDeleteProfile = async (id: string, mode: string) => {
     try {
+      let result;
       if (mode === "voting") {
-        const { error } = await deleteVotingProfile(id);
-        if (error) throw error;
+        result = await deleteVotingProfile(id);
+        if (result.error) throw result.error;
       } else {
-        const { error } = await deleteHostingProfile(id);
-        if (error) throw error;
+        result = await deleteHostingProfile(id);
+        if (result.error) throw result.error;
       }
 
-      toast({
-        title: "Success",
-        description: "Profile deleted successfully",
-      });
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Profile deleted successfully",
+        });
 
-      // Update the local state
-      if (mode === "voting") {
-        setVotingProfiles(votingProfiles.filter((p) => p.id !== id));
+        // Update the local state
+        if (mode === "voting") {
+          setVotingProfiles(votingProfiles.filter((p) => p.id !== id));
+        } else {
+          setHostingProfiles(hostingProfiles.filter((p) => p.id !== id));
+        }
       } else {
-        setHostingProfiles(hostingProfiles.filter((p) => p.id !== id));
+        throw new Error("Failed to delete profile");
       }
     } catch (error) {
       console.error("Error deleting profile:", error);

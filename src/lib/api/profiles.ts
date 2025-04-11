@@ -71,6 +71,28 @@ export async function getVotingProfiles() {
   }
 }
 
+// Get a single voting profile by ID
+export async function getVotingProfile(profileId: string) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("User not authenticated");
+
+    // Use the RPC function to get the profile
+    const { data, error } = await supabase
+      .rpc("get_voting_profile", {
+        profile_id: profileId,
+        user_id: userData.user.id,
+      })
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error getting voting profile:", error);
+    return { data: null, error };
+  }
+}
+
 // Get all hosting profiles for the current user
 export async function getHostingProfiles() {
   try {
@@ -90,15 +112,47 @@ export async function getHostingProfiles() {
   }
 }
 
-// Delete a voting profile
-export async function deleteVotingProfile(profileId: string) {
+// Get a single hosting profile by ID
+export async function getHostingProfile(profileId: string) {
   try {
-    const { error } = await supabase
-      .from("profile_voting")
-      .delete()
-      .eq("id", profileId);
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("User not authenticated");
+
+    // Use the RPC function to get the profile
+    const { data, error } = await supabase
+      .rpc("get_hosting_profile", {
+        profile_id: profileId,
+        user_id: userData.user.id,
+      })
+      .single();
 
     if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error getting hosting profile:", error);
+    return { data: null, error };
+  }
+}
+
+// Delete a voting profile and all related data (except Microsoft accounts)
+export async function deleteVotingProfile(profileId: string) {
+  try {
+    // First, get the user ID to ensure we're only deleting our own data
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("User not authenticated");
+
+    // Use the RPC function to delete the profile
+    const { data: success, error } = await supabase.rpc(
+      "delete_voting_profile",
+      {
+        profile_id: profileId,
+        user_id: userData.user.id,
+      },
+    );
+
+    if (error) throw error;
+    if (!success) throw new Error("Failed to delete profile");
+
     return { success: true, error: null };
   } catch (error) {
     console.error("Error deleting voting profile:", error);
@@ -106,15 +160,25 @@ export async function deleteVotingProfile(profileId: string) {
   }
 }
 
-// Delete a hosting profile
+// Delete a hosting profile and all related data
 export async function deleteHostingProfile(profileId: string) {
   try {
-    const { error } = await supabase
-      .from("profile_hosting")
-      .delete()
-      .eq("id", profileId);
+    // First, get the user ID to ensure we're only deleting our own data
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("User not authenticated");
+
+    // Use the RPC function to delete the profile
+    const { data: success, error } = await supabase.rpc(
+      "delete_hosting_profile",
+      {
+        profile_id: profileId,
+        user_id: userData.user.id,
+      },
+    );
 
     if (error) throw error;
+    if (!success) throw new Error("Failed to delete profile");
+
     return { success: true, error: null };
   } catch (error) {
     console.error("Error deleting hosting profile:", error);

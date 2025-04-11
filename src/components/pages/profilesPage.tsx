@@ -5,7 +5,12 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Plus } from "lucide-react";
 import { ProfileGrid, ProfileProps } from "../profiles";
 import { useNavigate } from "react-router-dom";
-import { getVotingProfiles, getHostingProfiles } from "@/lib/api/profiles";
+import {
+  getVotingProfiles,
+  getHostingProfiles,
+  deleteVotingProfile,
+  deleteHostingProfile,
+} from "@/lib/api/profiles";
 import { setupTokenRefresh } from "@/lib/api/token-refresh";
 import { toast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
@@ -22,68 +27,68 @@ const ProfilesPage = () => {
   }, []);
 
   // Load profiles when the component mounts
-  useEffect(() => {
-    const loadProfiles = async () => {
-      setIsLoading(true);
-      try {
-        // Get both voting and hosting profiles
-        const { data: votingProfiles, error: votingError } =
-          await getVotingProfiles();
-        const { data: hostingProfiles, error: hostingError } =
-          await getHostingProfiles();
+  const loadProfiles = async () => {
+    setIsLoading(true);
+    try {
+      // Get both voting and hosting profiles
+      const { data: votingProfiles, error: votingError } =
+        await getVotingProfiles();
+      const { data: hostingProfiles, error: hostingError } =
+        await getHostingProfiles();
 
-        if (votingError) throw votingError;
-        if (hostingError) throw hostingError;
+      if (votingError) throw votingError;
+      if (hostingError) throw hostingError;
 
-        // Combine and format profiles
-        const formattedProfiles: ProfileProps[] = [];
+      // Combine and format profiles
+      const formattedProfiles: ProfileProps[] = [];
 
-        // Add voting profiles
-        if (votingProfiles) {
-          votingProfiles.forEach((profile) => {
-            formattedProfiles.push({
-              id: profile.id,
-              name: profile.name,
-              server: profile.server,
-              type: "voting",
-              createdAt: new Date(profile.created_at || Date.now()),
-              updatedAt: new Date(profile.updated_at || Date.now()),
-            });
+      // Add voting profiles
+      if (votingProfiles) {
+        votingProfiles.forEach((profile) => {
+          formattedProfiles.push({
+            id: profile.id,
+            name: profile.name,
+            server: profile.server,
+            type: "voting",
+            createdAt: new Date(profile.created_at || Date.now()),
+            updatedAt: new Date(profile.updated_at || Date.now()),
           });
-        }
-
-        // Add hosting profiles
-        if (hostingProfiles) {
-          hostingProfiles.forEach((profile) => {
-            formattedProfiles.push({
-              id: profile.id,
-              name: profile.name,
-              server: profile.server,
-              type: "hosting",
-              createdAt: new Date(profile.created_at || Date.now()),
-              updatedAt: new Date(profile.updated_at || Date.now()),
-            });
-          });
-        }
-
-        // Sort by updated date (newest first)
-        formattedProfiles.sort(
-          (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
-        );
-
-        setProfiles(formattedProfiles);
-      } catch (error) {
-        console.error("Error loading profiles:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load profiles",
-          variant: "destructive",
         });
-      } finally {
-        setIsLoading(false);
       }
-    };
 
+      // Add hosting profiles
+      if (hostingProfiles) {
+        hostingProfiles.forEach((profile) => {
+          formattedProfiles.push({
+            id: profile.id,
+            name: profile.name,
+            server: profile.server,
+            type: "hosting",
+            createdAt: new Date(profile.created_at || Date.now()),
+            updatedAt: new Date(profile.updated_at || Date.now()),
+          });
+        });
+      }
+
+      // Sort by updated date (newest first)
+      formattedProfiles.sort(
+        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+      );
+
+      setProfiles(formattedProfiles);
+    } catch (error) {
+      console.error("Error loading profiles:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load profiles",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadProfiles();
   }, []);
 
@@ -98,6 +103,38 @@ const ProfilesPage = () => {
 
   const handleEditProfile = (id: string, type: string) => {
     navigate(`/profiles/edit/${id}?mode=${type}`);
+  };
+
+  const handleDeleteProfile = async (id: string, type: string) => {
+    try {
+      let result;
+      if (type === "voting") {
+        result = await deleteVotingProfile(id);
+      } else {
+        result = await deleteHostingProfile(id);
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      // Show success toast
+      toast({
+        title: "Success",
+        description: "Profile deleted successfully",
+        variant: "default",
+      });
+
+      // Refresh the profiles list
+      await loadProfiles();
+    } catch (error) {
+      console.error("Error deleting profile:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete profile",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -176,6 +213,7 @@ const ProfilesPage = () => {
             profiles={profiles}
             onAddProfile={addProfile}
             onEditProfile={handleEditProfile}
+            onDeleteProfile={handleDeleteProfile}
           />
         )}
       </div>
